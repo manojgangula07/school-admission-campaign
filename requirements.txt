@@ -5,6 +5,7 @@ psycopg2-binary
 Werkzeug
 flask-login
 flask-migrate
-
+psycopg2-binary
+python-dotenv
 
 
