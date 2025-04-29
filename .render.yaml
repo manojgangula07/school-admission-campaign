@@ -1,7 +1,7 @@
 services:
   - type: web
     name: school-admission-app
-    env: python
+    runtime: python
     buildCommand: |
       pip install -r requirements.txt
       flask db upgrade
@@ -12,4 +12,4 @@ services:
       - key: FLASK_ENV
         value: production
       - key: RENDER
-        value: true
+        value: "true"
