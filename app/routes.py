@@ -448,3 +448,10 @@ def set_follow_up_date():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)})
+
+
+@main.route('/reset-db')
+def reset_db():
+    db.drop_all()
+    db.create_all()
+    return "Database has been reset!"
