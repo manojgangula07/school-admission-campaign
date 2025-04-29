@@ -5,7 +5,7 @@ class Teacher(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(225))
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(256))
+    password = db.Column(db.String(512))
     mobile_number = db.Column(db.String(15), nullable=False)
     # Define the relationship here only
     students = db.relationship('Student', backref='teacher', lazy=True)
