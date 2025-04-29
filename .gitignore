@@ -1,0 +1,4 @@
+generate_secret_key.py
+venv/
+instance/
+migrations/
