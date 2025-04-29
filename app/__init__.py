@@ -2,7 +2,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
-from config import Config  # make sure this is imported
+from config import Config
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -26,11 +26,9 @@ def create_app():
     from .routes import main
     app.register_blueprint(main)
 
-    # ✅ Move your db upgrade logic here
-    from flask_migrate import upgrade
-
-    @app.before_first_request
-    def apply_migrations():
+    # ✅ Run migrations directly at startup (safe for dev/test/prod)
+    with app.app_context():
+        from flask_migrate import upgrade
         upgrade()
 
     return app
