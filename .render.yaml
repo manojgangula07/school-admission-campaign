@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: school-admission-app
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt
+      flask db upgrade
+    startCommand: gunicorn app:app
+    envVars:
+      - key: FLASK_APP
+        value: app.py
+      - key: FLASK_ENV
+        value: production
+      - key: RENDER
+        value: true
