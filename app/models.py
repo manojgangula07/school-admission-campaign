@@ -3,7 +3,7 @@ from app import db
 
 class Teacher(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
+    name = db.Column(db.String(225))
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(128))
     mobile_number = db.Column(db.String(15), nullable=False)
