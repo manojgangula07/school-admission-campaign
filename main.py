@@ -1,9 +1,13 @@
-from app import create_app
-import os
+from flask import Flask
+from config import Config, ProductionConfig
 
-app = create_app()
+def create_app():
+    app = Flask(__name__)
 
+    if os.getenv("FLASK_ENV") == "production":
+        app.config.from_object(ProductionConfig)
+    else:
+        app.config.from_object(Config)
 
-
-if __name__ == '__main__':
-    app.run()
+    # Initialize extensions like db here
+    return app
