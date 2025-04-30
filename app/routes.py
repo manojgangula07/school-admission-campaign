@@ -63,6 +63,7 @@ def signup():
 @main.route('/teacher_dashboard')
 @login_required
 def teacher_dashboard():
+    # Get all students for this teacher
     students = Student.query.filter_by(teacher_id=current_user.id).all()
     
     # Get admission statistics
@@ -188,7 +189,7 @@ def delete_teacher(id):
 @main.route('/add_student', methods=['GET', 'POST'])
 @login_required
 def add_student():
-    is_admin = session.get('admin')
+    is_admin = session.get('admin', False)  # Default to False if not in session
     
     teachers = Teacher.query.all() if is_admin else None
 
@@ -201,7 +202,7 @@ def add_student():
             else:
                 teacher_id = teacher_id_value
         else:
-            teacher_id = current_user.id
+            teacher_id = current_user.id  # Set teacher_id to current logged-in teacher's ID
         
         student = Student(
             student_name=request.form['student_name'],
@@ -215,10 +216,17 @@ def add_student():
             teacher_id=teacher_id
         )
         db.session.add(student)
-        db.session.commit()
-
-        flash('Student added successfully!')
-        return redirect(url_for('main.teacher_dashboard' if not is_admin else 'main.admin_dashboard'))
+        try:
+            db.session.commit()
+            flash('Student added successfully!')
+            # Fix: Use is_admin to determine redirect
+            if is_admin:
+                return redirect(url_for('main.admin_dashboard'))
+            return redirect(url_for('main.teacher_dashboard'))  # Default redirect for teachers
+        except Exception as e:
+            db.session.rollback()
+            flash('Error adding student: ' + str(e))
+            return redirect(url_for('main.teacher_dashboard'))
     
     return render_template('add_student.html', teachers=teachers, is_admin=is_admin)
 
@@ -428,30 +436,26 @@ def teacher_stats(teacher_id):
 @main.route('/set_follow_up_date', methods=['POST'])
 @login_required
 def set_follow_up_date():
-    data = request.get_json()
-    student_id = data.get('student_id')
-    follow_up_date = data.get('follow_up_date')
-    
-    if not student_id or not follow_up_date:
-        return jsonify({'success': False, 'message': 'Missing required fields'})
-    
-    student = Student.query.get_or_404(student_id)
-    
-    # Verify that the student belongs to the current teacher
-    if student.teacher_id != current_user.id:
-        return jsonify({'success': False, 'message': 'Unauthorized access'})
-    
     try:
+        data = request.get_json()
+        student_id = data.get('student_id')
+        follow_up_date = data.get('follow_up_date')
+        
+        if not student_id or not follow_up_date:
+            return jsonify({'success': False, 'message': 'Missing required fields'})
+        
+        student = Student.query.get_or_404(student_id)
+        
+        # Allow both admin and the assigned teacher to set follow-up date
+        if not session.get('admin') and student.teacher_id != current_user.id:
+            return jsonify({'success': False, 'message': 'Unauthorized access'})
+        
         student.follow_up_date = datetime.strptime(follow_up_date, '%Y-%m-%d').date()
         db.session.commit()
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'message': 'Follow-up date set successfully'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)})
 
 
-@main.route('/reset-db')
-def reset_db():
-    db.drop_all()
-    db.create_all()
-    return "Database has been reset!"
+

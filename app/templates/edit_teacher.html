@@ -10,10 +10,10 @@
     <h2>Edit Teacher</h2>
 
     <div class="mb-4">
-        <a href="/admin/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+        <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
     </div>
 
-    <form action="/admin/edit_teacher/{{ teacher.id }}" method="POST">
+    <form action="{{ url_for('main.edit_teacher', id=teacher.id) }}" method="POST">
         <div class="mb-3">
             <label for="name" class="form-label">Teacher Name</label>
             <input type="text" class="form-control" id="name" name="name" value="{{ teacher.name }}" required>

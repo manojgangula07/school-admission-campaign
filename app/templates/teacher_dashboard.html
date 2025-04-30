@@ -176,6 +176,9 @@
 </div>
 
 <script>
+    // Add CSRF token to all AJAX requests
+    const csrfToken = "{{ csrf_token() }}";
+    
     // Admission Status Chart
     const admissionCtx = document.getElementById('admissionChart').getContext('2d');
     new Chart(admissionCtx, {
@@ -243,7 +246,8 @@
         fetch('/set_follow_up_date', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({
                 student_id: studentId,
@@ -255,7 +259,7 @@
             if (data.success) {
                 window.location.reload();
             } else {
-                alert('Error setting follow-up date');
+                alert(data.message || 'Error setting follow-up date');
             }
         })
         .catch(error => {
