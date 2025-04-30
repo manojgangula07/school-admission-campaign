@@ -1,4 +1,22 @@
-generate_secret_key.py
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Environment
 venv/
 .env
-migrations/
+
+# SQLite database (not needed if using Postgres)
+*.db
+
+# Flask/Migration
+migrations/  # Optional: include if you want to share schema setup
+instance/
+
+# IDE
+*.vscode/
+*.idea/
+.DS_Store
