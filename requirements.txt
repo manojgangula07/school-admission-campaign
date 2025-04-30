@@ -1,11 +1,11 @@
 Flask
 Flask-SQLAlchemy
+Flask-Login
+Flask-WTF
 gunicorn
 psycopg2-binary
 Werkzeug
-flask-login
 flask-migrate
-
 python-dotenv
 
 

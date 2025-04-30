@@ -172,7 +172,7 @@ def add_teacher_self():
     
     return render_template('add_teacher.html')
 
-@main.route('/delete_teacher/<int:id>', methods=['POST'])
+@main.route('/admin/delete_teacher/<int:id>', methods=['POST'])
 def delete_teacher(id):
     if not session.get('admin'):
         return redirect(url_for('main.login'))
@@ -243,22 +243,36 @@ def edit_student(id):
     teachers = Teacher.query.all() if is_admin else None
 
     if request.method == 'POST':
-        student.student_name = request.form['student_name']
-        student.father_name = request.form.get('father_name')
-        student.mother_name = request.form.get('mother_name')
-        student.mobile_number = request.form['mobile_number']
-        student.student_class = request.form['student_class']
-        student.village = request.form.get('village')
-        student.previous_school = request.form.get('previous_school')
-        student.remarks = request.form.get('remarks')
-        
-        if is_admin:
-            student.teacher_id = request.form.get('teacher_id')
-        
-        db.session.commit()
-
-        flash('Student details updated successfully!')
-        return redirect(url_for('main.teacher_dashboard' if not is_admin else 'admin_dashboard'))
+        try:
+            student.student_name = request.form['student_name']
+            student.father_name = request.form.get('father_name')
+            student.mother_name = request.form.get('mother_name')
+            student.mobile_number = request.form['mobile_number']
+            student.student_class = request.form['student_class']
+            student.village = request.form.get('village')
+            student.previous_school = request.form.get('previous_school')
+            student.remarks = request.form.get('remarks')
+            
+            # Handle admission status
+            student.is_admitted = request.form.get('is_admitted') == 'on'
+            if student.is_admitted:
+                admission_date = request.form.get('admission_date')
+                if admission_date:
+                    student.admission_date = datetime.strptime(admission_date, '%Y-%m-%d').date()
+                elif not student.admission_date:
+                    student.admission_date = datetime.now().date()
+            else:
+                student.admission_date = None
+            
+            db.session.commit()
+            flash('Student details updated successfully!')
+            
+            return redirect(url_for('main.teacher_dashboard' if not is_admin else 'main.admin_dashboard'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating student: {str(e)}')
+            return render_template('edit_student.html', student=student, teachers=teachers, is_admin=is_admin)
 
     return render_template('edit_student.html', student=student, teachers=teachers, is_admin=is_admin)
 
@@ -271,19 +285,12 @@ def delete_student(id):
         student = Student.query.get_or_404(id)
         db.session.delete(student)
         db.session.commit()
-        
-        if request.is_json:
-            return jsonify({'success': True, 'message': 'Student deleted successfully!'})
-        else:
-            flash('Student deleted successfully!')
-            return redirect(url_for('main.admin_dashboard'))
+        flash('Student deleted successfully!')
     except Exception as e:
         db.session.rollback()
-        if request.is_json:
-            return jsonify({'success': False, 'message': str(e)}), 500
-        else:
-            flash('Error deleting student')
-            return redirect(url_for('main.admin_dashboard'))
+        flash('Error deleting student: ' + str(e))
+    
+    return redirect(url_for('main.admin_dashboard'))
 
 @main.route('/view_students')
 @login_required
@@ -355,7 +362,7 @@ def edit_student_admin(id):
         flash('Student updated successfully!')
         return redirect(url_for('main.admin_dashboard'))
     
-    return render_template('edit_student_admin.html', student=student, teachers=teachers)
+    return render_template('edit_student_admin.html', student=student, teachers=teachers, is_admin=True)
 
 @main.route('/get_teachers')
 def get_teachers():
@@ -378,31 +385,36 @@ def add_student_admin():
     teachers = Teacher.query.all()
     
     if request.method == 'POST':
-        student = Student(
-            student_name=request.form['student_name'],
-            father_name=request.form.get('father_name'),
-            mother_name=request.form.get('mother_name'),
-            mobile_number=request.form['mobile_number'],
-            student_class=request.form['student_class'],
-            village=request.form.get('village'),
-            previous_school=request.form.get('previous_school'),
-            remarks=request.form.get('remarks'),
-            teacher_id=request.form.get('teacher_id'),
-            is_admitted=request.form.get('is_admitted') == 'on'
-        )
-        
-        if student.is_admitted:
-            admission_date = request.form.get('admission_date')
-            if admission_date:
-                student.admission_date = datetime.strptime(admission_date, '%Y-%m-%d').date()
-            else:
-                student.admission_date = datetime.now().date()
-        
-        db.session.add(student)
-        db.session.commit()
-        
-        flash('Student added successfully!')
-        return redirect(url_for('main.admin_dashboard'))
+        try:
+            student = Student(
+                student_name=request.form['student_name'],
+                father_name=request.form.get('father_name'),
+                mother_name=request.form.get('mother_name'),
+                mobile_number=request.form['mobile_number'],
+                student_class=request.form['student_class'],
+                village=request.form.get('village'),
+                previous_school=request.form.get('previous_school'),
+                remarks=request.form.get('remarks'),
+                teacher_id=request.form.get('teacher_id') if request.form.get('teacher_id') != 'admin' else None,
+                is_admitted=request.form.get('is_admitted') == 'on'
+            )
+            
+            if student.is_admitted:
+                admission_date = request.form.get('admission_date')
+                if admission_date:
+                    student.admission_date = datetime.strptime(admission_date, '%Y-%m-%d').date()
+                else:
+                    student.admission_date = datetime.now().date()
+            
+            db.session.add(student)
+            db.session.commit()
+            
+            flash('Student added successfully!')
+            return redirect(url_for('main.admin_dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error adding student: {str(e)}')
+            return render_template('add_student_admin.html', teachers=teachers)
     
     return render_template('add_student_admin.html', teachers=teachers)
 

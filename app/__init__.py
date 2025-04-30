@@ -2,16 +2,16 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect
 from config import Config
 import os
 from werkzeug.security import generate_password_hash
-from flask_wtf.csrf import CSRFProtect
 
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
-login_manager.login_view = 'main.login'
 csrf = CSRFProtect()
+login_manager.login_view = 'main.login'
 
 def init_db(app):
     """Initialize the database and create admin account if it doesn't exist"""

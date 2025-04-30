@@ -14,8 +14,8 @@
 <h3>Good Morning, {{ current_user.name }}</h3>
 
 <div class="mb-4">
-    <a href="/logout" class="btn btn-danger">Logout</a>
-    <a href="/add_student" class="btn btn-success ms-2">Add Student</a>
+    <a href="{{ url_for('main.logout') }}" class="btn btn-danger">Logout</a>
+    <a href="{{ url_for('main.add_student') }}" class="btn btn-success ms-2">Add Student</a>
 </div>
 
 <!-- Follow-up Reminders Section -->
@@ -160,6 +160,7 @@
             </div>
             <div class="modal-body">
                 <form id="followUpForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" id="studentId" name="student_id">
                     <div class="mb-3">
                         <label for="followUpDate" class="form-label">Follow-up Date</label>
@@ -243,7 +244,12 @@
         const studentId = document.getElementById('studentId').value;
         const followUpDate = document.getElementById('followUpDate').value;
 
-        fetch('/set_follow_up_date', {
+        if (!followUpDate) {
+            alert('Please select a follow-up date');
+            return;
+        }
+
+        fetch('{{ url_for("main.set_follow_up_date") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -264,7 +270,7 @@
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error setting follow-up date');
+            alert('Error setting follow-up date. Please try again.');
         });
     }
 </script>
