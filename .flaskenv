@@ -1,0 +1,4 @@
+FLASK_APP=main.py
+FLASK_ENV=development
+DATABASE_URL=postgresql://postgres:2001@localhost:5432/school
+SECRET_KEY=c4b6367e2912557b2b20d354da3546633978d52327bc4733
