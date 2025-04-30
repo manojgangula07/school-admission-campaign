@@ -10,9 +10,11 @@ def create_app():
     else:
         app.config.from_object(Config)
 
-    # Initialize extensions like db here (e.g. db.init_app(app))
+    # Define a route for the root URL
+    @app.route('/')
+    def index():
+        return "Welcome to the School Admission Campaign!"
 
     return app
 
-# Create the app instance and assign it to 'app'
 app = create_app()
