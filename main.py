@@ -1,6 +1,6 @@
-from flask import Flask
-from config import Config, ProductionConfig
 import os
+from flask import Flask, render_template
+from config import Config, ProductionConfig
 
 def create_app():
     app = Flask(__name__)
@@ -10,11 +10,13 @@ def create_app():
     else:
         app.config.from_object(Config)
 
-    # Define a route for the root URL
-    @app.route('/')
-    def index():
-        return "Welcome to the School Admission Campaign!"
+    # Initialize routes
+    with app.app_context():
+        from app import routes  # Ensure routes are correctly imported
 
     return app
 
 app = create_app()
+
+if __name__ == '__main__':
+    app.run(debug=True)
