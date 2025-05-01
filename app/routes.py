@@ -81,6 +81,8 @@ def teacher_dashboard():
     
     classes = [stat[0] for stat in class_stats]
     students_per_class = [stat[1] for stat in class_stats]
+
+    
     
     # Get upcoming follow-ups (next 7 days)
     today = datetime.now().date()
@@ -102,24 +104,34 @@ def teacher_dashboard():
                          upcoming_followups=upcoming_followups,
                          today=today)
 
-@main.route('/admin_dashboard')
+@main.route('/admin_dashboard', methods=['GET', 'POST'])
 def admin_dashboard():
     if not session.get('admin'):
         return redirect(url_for('main.login'))
     
-    students = Student.query.all()
-    teachers = Teacher.query.all()
+    # Pagination for students
+    page_students = request.args.get('page_students', 1, type=int)
+    students_per_page = 20
+    students = Student.query.paginate(page=page_students, per_page=students_per_page, error_out=False)
+
+    # Pagination for teachers
+    page_teachers = request.args.get('page_teachers', 1, type=int)
+    teachers_per_page = 5
+    teachers = Teacher.query.paginate(page=page_teachers, per_page=teachers_per_page, error_out=False)
     
     # Get unique classes and villages for filters
-    classes = sorted(set(student.student_class for student in students))
-    villages = sorted(set(student.village for student in students if student.village))
+    classes = sorted(set(student.student_class for student in students.items))
+    villages = sorted(set(student.village for student in students.items if student.village))
     
+    # Query to get the number of students per teacher
     students_by_teacher = db.session.query(Teacher.name, func.count(Student.id))\
         .join(Student).group_by(Teacher.name).all()
 
+    # Query to get the number of students per class
     students_by_class = db.session.query(Student.student_class, func.count(Student.id))\
         .group_by(Student.student_class).all()
     
+    # Get the number of admitted and not admitted students
     admitted_students = Student.query.filter_by(is_admitted=True).count()
     not_admitted_students = Student.query.filter_by(is_admitted=False).count()
 
@@ -132,6 +144,8 @@ def admin_dashboard():
                          students_by_class=students_by_class,
                          admitted=admitted_students,
                          not_admitted=not_admitted_students)
+
+
 
 # Add, Edit, and Remove Teachers (Admin & Self-creation)
 

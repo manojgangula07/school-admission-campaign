@@ -53,7 +53,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <button type="button" class="btn btn-sm btn-warning" onclick="showFollowUpModal({{ student.id }})">
+                            <button type="button" class="btn btn-sm btn-warning" onclick="showFollowUpModal('{{ student.id }}')">
                                 ✏️ Edit Follow-up
                             </button>
                         </td>
@@ -68,7 +68,7 @@
     </div>
 </div>
 
-<!-- Statistics Charts -->
+<!-- Charts -->
 <div class="row mb-4">
     <div class="col-md-6">
         <h4>Admission Status</h4>
@@ -80,7 +80,30 @@
     </div>
 </div>
 
-<!-- Student Table -->
+<!-- Search and Filters -->
+<div class="mb-3 row">
+    <div class="col-md-4">
+        <input type="text" id="searchInput" class="form-control" placeholder="Search by student name...">
+    </div>
+    <div class="col-md-4">
+        <select id="classFilter" class="form-select">
+            <option value="">All Classes</option>
+            {% for cls in classes %}
+                <option value="{{ cls }}">{{ cls }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <!-- <div class="col-md-4">
+        <select id="villageFilter" class="form-select">
+            <option value="">Filter by Village</option>
+            {% for village in villages %}
+                <option value="{{ village }}">{{ village }}</option>
+            {% endfor %}
+        </select>
+    </div> -->
+</div>
+
+<!-- Students Table -->
 <table class="table table-bordered">
     <thead class="table-dark">
         <tr>
@@ -100,7 +123,10 @@
     </thead>
     <tbody>
         {% for student in students %}
-        <tr>
+        <tr class="student-row"
+            data-name="{{ student.student_name }}"
+            data-class="{{ student.student_class }}"
+            data-village="{{ student.village }}">
             <td>{{ student.student_name }}</td>
             <td>{{ student.father_name }}</td>
             <td>{{ student.mother_name }}</td>
@@ -128,7 +154,7 @@
                     {% if student.follow_up_date %}
                         {{ student.follow_up_date.strftime('%Y-%m-%d') }}
                     {% else %}
-                        <button type="button" class="btn btn-sm btn-primary" onclick="showFollowUpModal({{ student.id }})">
+                        <button type="button" class="btn btn-sm btn-primary" onclick="showFollowUpModal('{{ student.id }}')">
                             Set Follow-up
                         </button>
                     {% endif %}
@@ -137,12 +163,10 @@
                 {% endif %}
             </td>
             <td>
-                {% if not student.is_admitted %}
-                    {% if student.follow_up_date %}
-                        <button type="button" class="btn btn-sm btn-warning" onclick="showFollowUpModal({{ student.id }})">
-                            ✏️ Edit Follow-up
-                        </button>
-                    {% endif %}
+                {% if not student.is_admitted and student.follow_up_date %}
+                <button type="button" class="btn btn-sm btn-warning" onclick="showFollowUpModal('{{ student.id }}')">
+                    ✏️ Edit Follow-up
+                </button>
                 {% endif %}
             </td>
         </tr>
@@ -150,13 +174,13 @@
     </tbody>
 </table>
 
-<!-- Follow-up Date Modal -->
+<!-- Modal -->
 <div class="modal fade" id="followUpModal" tabindex="-1" aria-labelledby="followUpModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="followUpModalLabel">Set Follow-up Date</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title">Set Follow-up Date</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="followUpForm">
@@ -169,85 +193,58 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" onclick="saveFollowUpDate()">Save</button>
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-primary" onclick="saveFollowUpDate()">Save</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // Add CSRF token to all AJAX requests
     const csrfToken = "{{ csrf_token() }}";
-    
-    // Admission Status Chart
-    const admissionCtx = document.getElementById('admissionChart').getContext('2d');
-    new Chart(admissionCtx, {
+
+    // Charts
+    new Chart(document.getElementById('admissionChart').getContext('2d'), {
         type: 'pie',
         data: {
             labels: ['Admitted', 'Not Admitted'],
             datasets: [{
-                data: [{{ admitted }}, {{ not_admitted }}],
-                backgroundColor: [
-                    'rgba(75, 192, 192, 0.7)',
-                    'rgba(255, 206, 86, 0.7)'
-                ]
+                data: ["{{ admitted }}", "{{ not_admitted }}"],
+                backgroundColor: ['rgba(75, 192, 192, 0.7)', 'rgba(255, 206, 86, 0.7)']
             }]
         },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'top'
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(tooltipItem) {
-                            return tooltipItem.label + ': ' + tooltipItem.raw + ' students';
-                        }
-                    }
-                }
-            }
-        }
+        options: { responsive: true }
     });
 
-    // Students by Class Chart
-    const classCtx = document.getElementById('classChart').getContext('2d');
-    new Chart(classCtx, {
+    new Chart(document.getElementById('classChart').getContext('2d'), {
         type: 'bar',
         data: {
-            labels: {{ classes|tojson }},
+            labels: {{ classes | tojson }},
             datasets: [{
                 label: 'Students per Class',
-                data: {{ students_per_class|tojson }},
+                data: {{ students_per_class | tojson }},
                 backgroundColor: 'rgba(54, 162, 235, 0.7)'
             }]
         },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
+        options: { 
+            responsive: true, 
+            scales: { 
+                y: { 
+                    beginAtZero: true 
+                } 
+            } 
         }
     });
 
-    // Follow-up Date Modal Functions
+    // Modal Logic
     function showFollowUpModal(studentId) {
         document.getElementById('studentId').value = studentId;
-        const modal = new bootstrap.Modal(document.getElementById('followUpModal'));
-        modal.show();
+        new bootstrap.Modal(document.getElementById('followUpModal')).show();
     }
 
     function saveFollowUpDate() {
         const studentId = document.getElementById('studentId').value;
         const followUpDate = document.getElementById('followUpDate').value;
-
-        if (!followUpDate) {
-            alert('Please select a follow-up date');
-            return;
-        }
 
         fetch('{{ url_for("main.set_follow_up_date") }}', {
             method: 'POST',
@@ -255,24 +252,45 @@
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
             },
-            body: JSON.stringify({
-                student_id: studentId,
-                follow_up_date: followUpDate
-            })
+            body: JSON.stringify({ student_id: studentId, follow_up_date: followUpDate })
         })
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                window.location.reload();
-            } else {
-                alert(data.message || 'Error setting follow-up date');
-            }
+            if (data.success) window.location.reload();
+            else alert(data.message || 'Error setting follow-up date');
         })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error setting follow-up date. Please try again.');
-        });
+        .catch(() => alert('Error setting follow-up date. Please try again.'));
     }
+
+    // Search and Filter Functionality
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('searchInput');
+        const classFilter = document.getElementById('classFilter');
+        // const villageFilter = document.getElementById('villageFilter');
+        const studentRows = document.querySelectorAll('.student-row');
+
+        function filterStudents() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const selectedClass = classFilter.value;
+            // const selectedVillage = villageFilter.value;
+
+            studentRows.forEach(row => {
+                const name = row.getAttribute('data-name').toLowerCase();
+                const studentClass = row.getAttribute('data-class');
+                // const village = row.getAttribute('data-village');
+
+                const matchesSearch = name.includes(searchTerm);
+                const matchesClass = !selectedClass || studentClass === selectedClass;
+                // const matchesVillage = !selectedVillage || village === selectedVillage;
+
+                row.style.display = (matchesSearch && matchesClass ) ? '' : 'none';
+            });
+        }
+
+        searchInput.addEventListener('input', filterStudents);
+        classFilter.addEventListener('change', filterStudents);
+        villageFilter.addEventListener('change', filterStudents);
+    });
 </script>
 
 </body>

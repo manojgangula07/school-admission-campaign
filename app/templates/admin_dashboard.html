@@ -7,417 +7,320 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="container mt-4">
-<h1>Krishnaveni Talent School Ramannapet</h1>
-<h2>Admin Dashboard</h2>
+    <h1>Krishnaveni Talent School Ramannapet</h1>
+    <h2>Admin Dashboard</h2>
 
-<div class="mb-4">
-    <a href="/logout" class="btn btn-danger">Logout</a>
-</div>
-
-<!-- Existing Charts -->
-<div class="row">
-    <div class="col-md-6">
-        <h4>Students per Teacher</h4>
-        <canvas id="studentsPerTeacherChart"></canvas>
+    <div class="mb-4">
+        <a href="/logout" class="btn btn-danger">Logout</a>
     </div>
 
-    <div class="col-md-6">
-        <h4>Students per Class</h4>
-        <canvas id="studentsPerClassChart"></canvas>
-    </div>
-</div>
+    <!-- Charts Section -->
+    <div class="row">
+        <div class="col-md-6">
+            <h4>Students per Teacher</h4>
+            <canvas id="studentsPerTeacherChart"></canvas>
+        </div>
 
-<div class="row mt-5">
-    <div class="col-md-6">
-        <h4>Admissions</h4>
-        <canvas id="admissionsChart"></canvas>
-    </div>
-</div>
-
-<!-- Teacher Management Section -->
-<div class="mt-5">
-    <h3>Teacher Management</h3>
-
-    <!-- Add Teacher Button -->
-    <a href="/admin/add_teacher" class="btn btn-primary mb-3">➕ Add Teacher</a>
-
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Teacher ID</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Mobile</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for teacher in teachers %}
-            <tr>
-                <td>{{ teacher.id }}</td>
-                <td>{{ teacher.name }}</td>
-                <td>{{ teacher.email }}</td>
-                <td>{{ teacher.mobile_number }}</td>
-                <td>
-                    <a href="/admin/edit_teacher/{{ teacher.id }}" class="btn btn-sm btn-warning">✏️ Edit</a>
-                    <form action="{{ url_for('main.delete_teacher', id=teacher.id) }}" method="POST" style="display: inline;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this teacher?');">🗑️ Delete</button>
-                    </form>
-                    <button class="btn btn-sm btn-info" onclick="toggleTeacherStats({{ teacher.id }})">📊 Stats</button>
-                </td>
-            </tr>
-            <tr id="teacher-stats-{{ teacher.id }}" style="display: none;">
-                <td colspan="5">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5>Admission Status</h5>
-                            <canvas id="teacherAdmissionChart-{{ teacher.id }}"></canvas>
-                        </div>
-                        <div class="col-md-6">
-                            <h5>Students by Class</h5>
-                            <canvas id="teacherClassChart-{{ teacher.id }}"></canvas>
-                        </div>
-                    </div>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="4">No teachers found.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<!-- Student Management Section -->
-<div class="mt-5">
-    <h3>Student Management</h3>
-
-    <!-- Add Student Button -->
-    <a href="{{ url_for('main.add_student_admin') }}" class="btn btn-primary mb-3">➕ Add Student</a>
-
-    <!-- Search and Filter Controls -->
-    <div class="card mb-3">
-        <div class="card-body">
-            <form id="searchForm" class="row g-3">
-                <div class="col-md-3">
-                    <input type="text" class="form-control" id="searchInput" placeholder="Search by name...">
-                </div>
-                <div class="col-md-3">
-                    <select class="form-select" id="classFilter">
-                        <option value="">All Classes</option>
-                        {% for class_name in classes %}
-                        <option value="{{ class_name }}">{{ class_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <select class="form-select" id="villageFilter">
-                        <option value="">All Villages</option>
-                        {% for village in villages %}
-                        <option value="{{ village }}">{{ village }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <select class="form-select" id="teacherFilter">
-                        <option value="">All Teachers</option>
-                        {% for teacher in teachers %}
-                        <option value="{{ teacher.id }}">{{ teacher.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </form>
+        <div class="col-md-6">
+            <h4>Students per Class</h4>
+            <canvas id="studentsPerClassChart"></canvas>
         </div>
     </div>
 
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Student ID</th>
-                <th>Student Name</th>
-                <th>Father's Name</th>
-                <th>Village</th>
-                <th>Mobile Number</th>
-                <th>Class</th>
-                <th>Teacher</th>
-                <th>Status</th>
-                <th>Admission Date</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="studentTableBody">
-            {% for student in students %}
-            <tr class="student-row" 
-                data-name="{{ student.student_name }}"
-                data-class="{{ student.student_class }}"
-                data-village="{{ student.village }}"
-                data-teacher="{{ student.teacher_id }}">
-                <td>{{ student.id }}</td>
-                <td>{{ student.student_name }}</td>
-                <td>{{ student.father_name }}</td>
-                <td>{{ student.village }}</td>
-                <td>{{ student.mobile_number }}</td>
-                <td>{{ student.student_class }}</td>
-                <td>{{ student.teacher.name if student.teacher else 'N/A' }}</td>
-                <td>
-                    {% if student.is_admitted %}
-                    <span class="badge bg-success">Admitted</span>
-                    {% else %}
-                    <span class="badge bg-warning">Not Admitted</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if student.is_admitted and student.admission_date %}
-                    {{ student.admission_date.strftime('%Y-%m-%d') }}
-                    {% else %}
-                    -
-                    {% endif %}
-                </td>
-                <td>
-                    <a href="{{ url_for('main.edit_student_admin', id=student.id) }}" class="btn btn-sm btn-warning">✏️ Edit</a>
-                    <a href="{{ url_for('main.view_student', id=student.id) }}" class="btn btn-sm btn-info">👁️ View</a>
-                    <form action="{{ url_for('main.delete_student', id=student.id) }}" method="POST" style="display: inline;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this student?');">🗑️ Delete</button>
-                    </form>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="10">No students found.</td>
-            </tr>
+    <div class="row mt-5">
+        <div class="col-md-6">
+            <h4>Admissions</h4>
+            <canvas id="admissionsChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Teacher Management Section -->
+    <div class="mt-5">
+        <h3>Teacher Management</h3>
+        <a href="/admin/add_teacher" class="btn btn-primary mb-3">➕ Add Teacher</a>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Teacher ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Mobile</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for teacher in teachers %}
+                <tr>
+                    <td>{{ teacher.id }}</td>
+                    <td>{{ teacher.name }}</td>
+                    <td>{{ teacher.email }}</td>
+                    <td>{{ teacher.mobile_number }}</td>
+                    <td>
+                        <a href="/admin/edit_teacher/{{ teacher.id }}" class="btn btn-sm btn-warning">✏️ Edit</a>
+                        <form action="{{ url_for('main.delete_teacher', id=teacher.id) }}" method="POST" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this teacher?');">🗑️ Delete</button>
+                        </form>
+                        <button class="btn btn-sm btn-info" onclick="toggleTeacherStats('{{ teacher.id }}')">📊 Stats</button>
+                    </td>
+                </tr>
+                <tr id="teacher-stats-{{ teacher.id }}" style="display: none;">
+                    <td colspan="5">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Admission Status</h5>
+                                <canvas id="teacherAdmissionChart-{{ teacher.id }}"></canvas>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Students by Class</h5>
+                                <canvas id="teacherClassChart-{{ teacher.id }}"></canvas>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5">No teachers found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+            <!-- Pagination for Teachers -->
+            <ul class="pagination">
+                <li class="page-item {% if not teachers.has_prev %}disabled{% endif %}">
+                  <a class="page-link" href="{{ url_for('main.admin_dashboard', page_teachers=teachers.prev_num) }}">Previous</a>
+                </li>
+                {% for page_num in range(1, teachers.pages + 1) %}
+                  <li class="page-item {% if page_num == teachers.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.admin_dashboard', page_teachers=page_num) }}">{{ page_num }}</a>
+                  </li>
+                {% endfor %}
+                <li class="page-item {% if not teachers.has_next %}disabled{% endif %}">
+                  <a class="page-link" href="{{ url_for('main.admin_dashboard', page_teachers=teachers.next_num) }}">Next</a>
+                </li>
+            </ul>
+    </div>
+
+    <!-- Student Management Section -->
+    <div class="mt-5">
+        <h3>Student Management</h3>
+        <a href="{{ url_for('main.add_student_admin') }}" class="btn btn-primary mb-3">➕ Add Student</a>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <form id="searchForm" class="row g-3">
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" id="searchInput" placeholder="Search by name...">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="classFilter">
+                            <option value="">All Classes</option>
+                            {% for class_name in classes %}
+                            <option value="{{ class_name }}">{{ class_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="villageFilter">
+                            <option value="">All Villages</option>
+                            {% for village in villages %}
+                            <option value="{{ village }}">{{ village }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="teacherFilter">
+                            <option value="">All Teachers</option>
+                            {% for teacher in teachers %}
+                            <option value="{{ teacher.id }}">{{ teacher.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Student ID</th>
+                    <th>Student Name</th>
+                    <th>Father's Name</th>
+                    <th>Village</th>
+                    <th>Mobile Number</th>
+                    <th>Class</th>
+                    <th>Teacher</th>
+                    <th>Status</th>
+                    <th>Admission Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="studentTableBody">
+                {% for student in students %}
+                <tr class="student-row"
+                    data-name="{{ student.student_name }}"
+                    data-class="{{ student.student_class }}"
+                    data-village="{{ student.village }}"
+                    data-teacher="{{ student.teacher_id }}">
+                    <td>{{ student.id }}</td>
+                    <td>{{ student.student_name }}</td>
+                    <td>{{ student.father_name }}</td>
+                    <td>{{ student.village }}</td>
+                    <td>{{ student.mobile_number }}</td>
+                    <td>{{ student.student_class }}</td>
+                    <td>{{ student.teacher.name if student.teacher else 'N/A' }}</td>
+                    <td>
+                        {% if student.is_admitted %}
+                        <span class="badge bg-success">Admitted</span>
+                        {% else %}
+                        <span class="badge bg-warning">Not Admitted</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if student.is_admitted and student.admission_date %}
+                        {{ student.admission_date.strftime('%Y-%m-%d') }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('main.edit_student_admin', id=student.id) }}" class="btn btn-sm btn-warning">✏️ Edit</a>
+                        <a href="{{ url_for('main.view_student', id=student.id) }}" class="btn btn-sm btn-info">👁️ View</a>
+                        <form action="{{ url_for('main.delete_student', id=student.id) }}" method="POST" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this student?');">🗑️ Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="10">No students found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+         <!-- Pagination for Students -->
+        <ul class="pagination">
+            <li class="page-item {% if not students.has_prev %}disabled{% endif %}">
+              <a class="page-link" href="{{ url_for('main.admin_dashboard', page_students=students.prev_num) }}">Previous</a>
+            </li>
+            {% for page_num in range(1, students.pages + 1) %}
+              <li class="page-item {% if page_num == students.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('main.admin_dashboard', page_students=page_num) }}">{{ page_num }}</a>
+              </li>
             {% endfor %}
-        </tbody>
-    </table>
-</div>
+            <li class="page-item {% if not students.has_next %}disabled{% endif %}">
+              <a class="page-link" href="{{ url_for('main.admin_dashboard', page_students=students.next_num) }}">Next</a>
+            </li>
+        </ul>
+    </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    const studentsPerTeacherCtx = document.getElementById('studentsPerTeacherChart').getContext('2d');
-    const studentsPerClassCtx = document.getElementById('studentsPerClassChart').getContext('2d');
-    const admissionsCtx = document.getElementById('admissionsChart').getContext('2d');
+    <!-- Charts + Filter Script -->
+    <script >
+        const studentsByTeacherLabels = {{ students_by_teacher|map(attribute=0)|list|tojson }};
+        const studentsByTeacherData = {{ students_by_teacher|map(attribute=1)|list|tojson }};
+        const studentsByClassLabels = {{ students_by_class|map(attribute=0)|list|tojson }};
+        const studentsByClassData = {{ students_by_class|map(attribute=1)|list|tojson }};
+        const admitted = {{ admitted|tojson }};
+        const notAdmitted = {{ not_admitted|tojson }};
 
-    // Ensure data is passed correctly from server-side
-    const studentsByTeacherLabels = {{ students_by_teacher|map(attribute=0)|list|tojson }};
-    const studentsByTeacherData = {{ students_by_teacher|map(attribute=1)|list|tojson }};
-    const studentsByClassLabels = {{ students_by_class|map(attribute=0)|list|tojson }};
-    const studentsByClassData = {{ students_by_class|map(attribute=1)|list|tojson }};
-    const admitted = {{ admitted|tojson }};
-    const notAdmitted = {{ not_admitted|tojson }};
-
-    // Handle potential missing or malformed data
-    if (!Array.isArray(studentsByTeacherLabels) || studentsByTeacherLabels.length === 0) {
-        console.error("Invalid data for students_by_teacher.");
-    }
-    if (!Array.isArray(studentsByClassLabels) || studentsByClassLabels.length === 0) {
-        console.error("Invalid data for students_by_class.");
-    }
-    if (admitted === undefined || notAdmitted === undefined) {
-        console.error("Invalid data for admissions.");
-    }
-
-    // Create Students Per Teacher Chart
-    new Chart(studentsPerTeacherCtx, {
-        type: 'bar',
-        data: {
-            labels: studentsByTeacherLabels,
-            datasets: [{
-                label: 'Students per Teacher',
-                data: studentsByTeacherData,
-                backgroundColor: 'rgba(54, 162, 235, 0.7)'
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
-    });
-
-    // Create Students Per Class Chart
-    new Chart(studentsPerClassCtx, {
-        type: 'bar',
-        data: {
-            labels: studentsByClassLabels,
-            datasets: [{
-                label: 'Students per Class',
-                data: studentsByClassData,
-                backgroundColor: 'rgba(255, 99, 132, 0.7)'
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
-        }
-    });
-
-    // Create Admissions Pie Chart
-    new Chart(admissionsCtx, {
-        type: 'pie',
-        data: {
-            labels: ['Admitted', 'Not Admitted'],
-            datasets: [{
-                label: 'Admissions',
-                data: [admitted, notAdmitted],
-                backgroundColor: [
-                    'rgba(75, 192, 192, 0.7)',
-                    'rgba(255, 206, 86, 0.7)'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'top',
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(tooltipItem) {
-                            return tooltipItem.label + ': ' + tooltipItem.raw + ' students';
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    // Search and Filter Functionality
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.getElementById('searchInput');
-        const classFilter = document.getElementById('classFilter');
-        const villageFilter = document.getElementById('villageFilter');
-        const teacherFilter = document.getElementById('teacherFilter');
-        const studentRows = document.querySelectorAll('.student-row');
-
-        function filterStudents() {
-            const searchTerm = searchInput.value.toLowerCase();
-            const selectedClass = classFilter.value;
-            const selectedVillage = villageFilter.value;
-            const selectedTeacher = teacherFilter.value;
-
-            studentRows.forEach(row => {
-                const name = row.getAttribute('data-name').toLowerCase();
-                const studentClass = row.getAttribute('data-class');
-                const village = row.getAttribute('data-village');
-                const teacher = row.getAttribute('data-teacher');
-
-                const matchesSearch = name.includes(searchTerm);
-                const matchesClass = !selectedClass || studentClass === selectedClass;
-                const matchesVillage = !selectedVillage || village === selectedVillage;
-                const matchesTeacher = !selectedTeacher || teacher === selectedTeacher;
-
-                if (matchesSearch && matchesClass && matchesVillage && matchesTeacher) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-        }
-
-        searchInput.addEventListener('input', filterStudents);
-        classFilter.addEventListener('change', filterStudents);
-        villageFilter.addEventListener('change', filterStudents);
-        teacherFilter.addEventListener('change', filterStudents);
-    });
-
-    // Existing delete functionality
-    function confirmDelete(studentId) {
-        if (confirm('Are you sure you want to delete this student?')) {
-            fetch(`/admin/delete_student/${studentId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            }).then(response => {
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    alert('Error deleting student');
-                }
-            });
-        }
-    }
-
-    // Add this new function to handle teacher statistics
-    function toggleTeacherStats(teacherId) {
-        const statsRow = document.getElementById(`teacher-stats-${teacherId}`);
-        if (statsRow.style.display === 'none') {
-            statsRow.style.display = 'table-row';
-            loadTeacherStats(teacherId);
-        } else {
-            statsRow.style.display = 'none';
-        }
-    }
-
-    function loadTeacherStats(teacherId) {
-        // Fetch teacher's student data
-        fetch(`/admin/teacher_stats/${teacherId}`)
-            .then(response => response.json())
-            .then(data => {
-                // Create admission status pie chart
-                const admissionCtx = document.getElementById(`teacherAdmissionChart-${teacherId}`).getContext('2d');
-                new Chart(admissionCtx, {
-                    type: 'pie',
-                    data: {
-                        labels: ['Admitted', 'Not Admitted'],
-                        datasets: [{
-                            data: [data.admitted, data.not_admitted],
-                            backgroundColor: [
-                                'rgba(75, 192, 192, 0.7)',
-                                'rgba(255, 206, 86, 0.7)'
-                            ]
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(tooltipItem) {
-                                        return tooltipItem.label + ': ' + tooltipItem.raw + ' students';
-                                    }
-                                }
+        new Chart(document.getElementById('studentsPerTeacherChart'), {
+            type: 'bar',
+            data: {
+                labels: studentsByTeacherLabels,
+                datasets: [{
+                    label: 'Students per Teacher',
+                    data: studentsByTeacherData,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)'
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(tooltipItem) {
+                                return tooltipItem.label + ': ' + tooltipItem.raw + ' students';
                             }
                         }
                     }
-                });
+                }
+            }
+        });
 
-                // Create students by class bar chart
-                const classCtx = document.getElementById(`teacherClassChart-${teacherId}`).getContext('2d');
-                new Chart(classCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: data.classes,
-                        datasets: [{
-                            label: 'Students per Class',
-                            data: data.students_per_class,
-                            backgroundColor: 'rgba(54, 162, 235, 0.7)'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            y: {
-                                beginAtZero: true
+        new Chart(document.getElementById('studentsPerClassChart'), {
+            type: 'bar',
+            data: {
+                labels: studentsByClassLabels,
+                datasets: [{
+                    label: 'Students per Class',
+                    data: studentsByClassData,
+                    backgroundColor: 'rgba(255, 99, 132, 0.7)'
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(tooltipItem) {
+                                return tooltipItem.label + ': ' + tooltipItem.raw + ' students';
                             }
                         }
                     }
-                });
+                }
+            }
+        });
+
+        new Chart(document.getElementById('admissionsChart'), {
+            type: 'pie',
+            data: {
+                labels: ['Admitted', 'Not Admitted'],
+                datasets: [{
+                    data: [admitted, notAdmitted],
+                    backgroundColor: ['rgba(75, 192, 192, 0.7)', 'rgba(255, 206, 86, 0.7)']
+                }]
+            }
+        });
+
+        function toggleTeacherStats(teacherId) {
+            const statsRow = document.getElementById('teacher-stats-' + teacherId);
+            statsRow.style.display = statsRow.style.display === 'none' ? '' : 'none';
+        }
+
+        // Handle student table filtering
+        document.getElementById("searchForm").addEventListener("change", function() {
+            const nameFilter = document.getElementById("searchInput").value.toLowerCase();
+            const classFilter = document.getElementById("classFilter").value;
+            const villageFilter = document.getElementById("villageFilter").value;
+            const teacherFilter = document.getElementById("teacherFilter").value;
+
+            const rows = document.querySelectorAll(".student-row");
+            rows.forEach(row => {
+                const name = row.dataset.name.toLowerCase();
+                const studentClass = row.dataset.class;
+                const village = row.dataset.village;
+                const teacher = row.dataset.teacher;
+
+                const matchesName = name.includes(nameFilter);
+                const matchesClass = classFilter ? studentClass === classFilter : true;
+                const matchesVillage = villageFilter ? village === villageFilter : true;
+                const matchesTeacher = teacherFilter ? teacher === teacherFilter : true;
+
+                if (matchesName && matchesClass && matchesVillage && matchesTeacher) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
             });
-    }
-</script>
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js"></script>
 </body>
 </html>
