@@ -10,6 +10,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY') or 'you-will-never-guess'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    #SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
     SQLALCHEMY_DATABASE_URI = os.getenv('PROD_DATABASE_URL')
     DEBUG = False
 
@@ -21,7 +22,3 @@ class Config:
 #     SQLALCHEMY_DATABASE_URI = os.getenv('PROD_DATABASE_URL')
 #     DEBUG = False
 
-# class TestingConfig(Config):
-#     SQLALCHEMY_DATABASE_URI = os.getenv('TEST_DATABASE_URL') or 'sqlite:///:memory:'
-#     TESTING = True
-#     DEBUG = True

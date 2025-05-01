@@ -5,12 +5,14 @@ from sqlalchemy import func
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db
 from app.models import Teacher, Student
+from .forms import SignupForm
+from flask import Blueprint
 
 main = Blueprint('main', __name__)
 
 # Admin credentials
-ADMIN_EMAIL = "admin@admin.com"
-ADMIN_PASSWORD = "admin"
+ADMIN_EMAIL = "ktsramannapet@gmail.com"
+ADMIN_PASSWORD = "Ktsrpt@123"
 
 @main.route('/')
 def home():
@@ -45,11 +47,12 @@ def logout():
 
 @main.route('/signup', methods=['GET', 'POST'])
 def signup():
-    if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        password = generate_password_hash(request.form['password'])
-        mobile_number = request.form['mobile_number']
+    form = SignupForm()
+    if form.validate_on_submit():
+        name = form.name.data
+        email = form.email.data
+        password = generate_password_hash(form.password.data)
+        mobile_number = form.mobile_number.data
         
         new_teacher = Teacher(name=name, email=email, password=password, mobile_number=mobile_number)
         db.session.add(new_teacher)
@@ -58,7 +61,7 @@ def signup():
         flash('Account created! Please log in.')
         return redirect(url_for('main.login'))
     
-    return render_template('signup.html')
+    return render_template('signup.html', form=form)
 
 @main.route('/teacher_dashboard')
 @login_required
