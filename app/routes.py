@@ -5,7 +5,7 @@ from sqlalchemy import func
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db
 from app.models import Teacher, Student
-from .forms import SignupForm
+from .forms import SignupForm, EditStudentForm ,EditTeacherForm, AddStudentForm, AddStudentByTeacherForm
 from flask import Blueprint
 
 main = Blueprint('main', __name__)
@@ -104,47 +104,109 @@ def teacher_dashboard():
                          upcoming_followups=upcoming_followups,
                          today=today)
 
-@main.route('/admin_dashboard', methods=['GET', 'POST'])
+from flask import request
+
+@main.route('/admin_dashboard', methods=['GET']) 
 def admin_dashboard():
     if not session.get('admin'):
         return redirect(url_for('main.login'))
-    
-    # Pagination for students
-    page_students = request.args.get('page_students', 1, type=int)
-    students_per_page = 20
-    students = Student.query.paginate(page=page_students, per_page=students_per_page, error_out=False)
 
-    # Pagination for teachers
+    # Pagination setup
+    page_students = request.args.get('page_students', 1, type=int)
     page_teachers = request.args.get('page_teachers', 1, type=int)
+    students_per_page = 20
     teachers_per_page = 5
-    teachers = Teacher.query.paginate(page=page_teachers, per_page=teachers_per_page, error_out=False)
-    
-    # Get unique classes and villages for filters
-    classes = sorted(set(student.student_class for student in students.items))
-    villages = sorted(set(student.village for student in students.items if student.village))
-    
-    # Query to get the number of students per teacher
+
+    # Filters from request
+    search_name = request.args.get('search_name', '').strip()
+    class_filter = request.args.get('class_filter', '').strip()
+    village_filter = request.args.get('village_filter', '').strip()
+    teacher_filter = request.args.get('teacher_filter', '').strip()
+
+    # Student filtering query
+    student_query = Student.query
+    if search_name:
+        student_query = student_query.filter(Student.student_name.ilike(f"%{search_name}%"))
+    if class_filter:
+        student_query = student_query.filter(Student.student_class == class_filter)
+    if village_filter:
+        student_query = student_query.filter(Student.village == village_filter)
+    if teacher_filter:
+        try:
+            teacher_id = int(teacher_filter)
+            student_query = student_query.filter(Student.teacher_id == teacher_id)
+        except ValueError:
+            pass  # ignore invalid teacher ID
+
+    # Paginate students
+    students = student_query.order_by(Student.id.desc()).paginate(
+        page=page_students, per_page=students_per_page, error_out=False
+    )
+
+    # Paginate teachers
+    teachers_query = Teacher.query.order_by(Teacher.id.desc())
+    teachers_paginated = teachers_query.paginate(
+        page=page_teachers, per_page=teachers_per_page, error_out=False
+    )
+
+    # Fetch filter options efficiently
+    all_teachers = Teacher.query.all()
+    all_students_data = Student.query.with_entities(Student.student_class, Student.village).all()
+    classes = [c[0] for c in db.session.query(Student.student_class).distinct().filter(Student.student_class.isnot(None)).all()]
+    villages = [v[0] for v in db.session.query(Student.village).distinct().filter(Student.village.isnot(None)).all()]
+
+    # Chart: students by teacher
     students_by_teacher = db.session.query(Teacher.name, func.count(Student.id))\
         .join(Student).group_by(Teacher.name).all()
 
-    # Query to get the number of students per class
+    # Chart: students by class
     students_by_class = db.session.query(Student.student_class, func.count(Student.id))\
         .group_by(Student.student_class).all()
-    
-    # Get the number of admitted and not admitted students
-    admitted_students = Student.query.filter_by(is_admitted=True).count()
-    not_admitted_students = Student.query.filter_by(is_admitted=False).count()
 
-    return render_template('admin_dashboard.html', 
-                         students=students, 
-                         teachers=teachers,
-                         classes=classes,
-                         villages=villages,
-                         students_by_teacher=students_by_teacher,
-                         students_by_class=students_by_class,
-                         admitted=admitted_students,
-                         not_admitted=not_admitted_students)
+    # Admission stats
+    admitted_count = Student.query.filter_by(is_admitted=True).count()
+    not_admitted_count = Student.query.filter_by(is_admitted=False).count()
 
+    # Optimized teacher stats
+    teacher_ids = [t.id for t in all_teachers]
+
+    admitted_query = db.session.query(Student.teacher_id, func.count())\
+        .filter(Student.is_admitted == True, Student.teacher_id.in_(teacher_ids))\
+        .group_by(Student.teacher_id).all()
+
+    not_admitted_query = db.session.query(Student.teacher_id, func.count())\
+        .filter(Student.is_admitted == False, Student.teacher_id.in_(teacher_ids))\
+        .group_by(Student.teacher_id).all()
+
+    class_stats_query = db.session.query(
+        Student.teacher_id, Student.student_class, func.count(Student.id)
+    ).filter(Student.teacher_id.in_(teacher_ids))\
+     .group_by(Student.teacher_id, Student.student_class).all()
+
+    teacher_stats = {tid: {'admitted': 0, 'not_admitted': 0, 'class_stats': []} for tid in teacher_ids}
+    for tid, count in admitted_query:
+        teacher_stats[tid]['admitted'] = count
+    for tid, count in not_admitted_query:
+        teacher_stats[tid]['not_admitted'] = count
+    for tid, cls, count in class_stats_query:
+        teacher_stats[tid]['class_stats'].append((cls, count))
+
+    return render_template('admin_dashboard.html',
+                           students=students,
+                           teachers=teachers_paginated,
+                           all_teachers=all_teachers,
+                           classes=classes,
+                           villages=villages,
+                           students_by_teacher=students_by_teacher or [],
+                           students_by_class=students_by_class or [],
+                           admission_stats={"Admitted": admitted_count, "Not Admitted": not_admitted_count},
+                           search_name=search_name,
+                           class_filter=class_filter,
+                           village_filter=village_filter,
+                           teacher_filter=teacher_filter,
+                           admitted=admitted_count,
+                           not_admitted=not_admitted_count,
+                           teacher_stats=teacher_stats)
 
 
 # Add, Edit, and Remove Teachers (Admin & Self-creation)
@@ -206,46 +268,38 @@ def delete_teacher(id):
 @main.route('/add_student', methods=['GET', 'POST'])
 @login_required
 def add_student():
-    is_admin = session.get('admin', False)  # Default to False if not in session
-    
-    teachers = Teacher.query.all() if is_admin else None
+    form = AddStudentByTeacherForm()
 
-    if request.method == 'POST':
-        teacher_id = None
-        if is_admin:
-            teacher_id_value = request.form.get('teacher_id')
-            if teacher_id_value == 'admin':
-                teacher_id = None  # No teacher assigned (admin's student)
-            else:
-                teacher_id = teacher_id_value
-        else:
-            teacher_id = current_user.id  # Set teacher_id to current logged-in teacher's ID
-        
+    # Automatically assign the logged-in teacher's ID to the teacher_id field
+    form.teacher_id.data = current_user.id  # Set the teacher to the current logged-in user
+
+    if form.validate_on_submit():  # Check if form is validated and submitted correctly
         student = Student(
-            student_name=request.form['student_name'],
-            father_name=request.form.get('father_name'),
-            mother_name=request.form.get('mother_name'),
-            mobile_number=request.form['mobile_number'],
-            student_class=request.form['student_class'],
-            village=request.form.get('village'),
-            previous_school=request.form.get('previous_school'),
-            remarks=request.form.get('remarks'),
-            teacher_id=teacher_id
+            student_name=form.student_name.data,
+            father_name=form.father_name.data,
+            mother_name=form.mother_name.data,
+            mobile_number=form.mobile_number.data,
+            student_class=form.student_class.data,
+            village=form.village.data,
+            previous_school=form.previous_school.data,
+            remarks=form.remarks.data,
+            teacher_id=form.teacher_id.data  # Automatically assign the teacher's ID from the hidden field
         )
+        
+        # Add the student record to the database
         db.session.add(student)
         try:
-            db.session.commit()
-            flash('Student added successfully!')
-            # Fix: Use is_admin to determine redirect
-            if is_admin:
-                return redirect(url_for('main.admin_dashboard'))
-            return redirect(url_for('main.teacher_dashboard'))  # Default redirect for teachers
+            db.session.commit()  # Save the record
+            flash('Student added successfully!', 'success')
+            return redirect(url_for('main.teacher_dashboard'))  # Redirect to teacher dashboard after successful form submission
         except Exception as e:
-            db.session.rollback()
-            flash('Error adding student: ' + str(e))
-            return redirect(url_for('main.teacher_dashboard'))
-    
-    return render_template('add_student.html', teachers=teachers, is_admin=is_admin)
+            db.session.rollback()  # Rollback if there's an error in saving the student
+            flash(f'Error adding student: {str(e)}', 'danger')
+
+    return render_template('add_student.html', form=form)
+
+  
+
 
 @main.route('/edit_student/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -325,61 +379,67 @@ def edit_teacher(id):
         return redirect(url_for('main.login'))
     
     teacher = Teacher.query.get_or_404(id)
-    
-    if request.method == 'POST':
-        teacher.name = request.form['name']
-        teacher.email = request.form['email']
-        teacher.mobile_number = request.form['mobile_number']
+    form = EditTeacherForm(obj=teacher)  # Pre-fill form with existing data
+
+    if form.validate_on_submit():
+        teacher.name = form.name.data
+        teacher.email = form.email.data
+        teacher.mobile_number = form.mobile_number.data  # assuming form.phone maps to model.mobile_number
         if request.form.get('password'):
             teacher.password = generate_password_hash(request.form['password'])
-        
+
         db.session.commit()
         flash('Teacher updated successfully!')
         return redirect(url_for('main.admin_dashboard'))
     
-    return render_template('edit_teacher.html', teacher=teacher)
+    return render_template('edit_teacher.html', form=form, teacher=teacher)
 
 @main.route('/admin/edit_student/<int:id>', methods=['GET', 'POST'])
 def edit_student_admin(id):
-    if not session.get('admin'):
-        return redirect(url_for('main.login'))
-    
     student = Student.query.get_or_404(id)
-    teachers = Teacher.query.all()
-    
+
+    # Dynamically populate teacher choices
+    teacher_choices = [(teacher.id, teacher.name) for teacher in Teacher.query.all()]
+
     if request.method == 'POST':
-        student.student_name = request.form['student_name']
-        student.father_name = request.form.get('father_name')
-        student.mother_name = request.form.get('mother_name')
-        student.mobile_number = request.form['mobile_number']
-        student.student_class = request.form['student_class']
-        student.village = request.form.get('village')
-        student.previous_school = request.form.get('previous_school')
-        student.remarks = request.form.get('remarks')
-        
-        teacher_id_value = request.form.get('teacher_id')
-        if teacher_id_value == 'admin':
-            student.teacher_id = None  # No teacher assigned (admin's student)
+        form = EditStudentForm(request.form)
+        form.teacher_id.choices = teacher_choices
+
+        if form.validate():
+            student.student_name = form.student_name.data
+            student.father_name = form.father_name.data
+            student.mother_name = form.mother_name.data
+            student.mobile_number = form.mobile_number.data
+            student.student_class = form.student_class.data
+            student.village = form.village.data
+            student.previous_school = form.previous_school.data
+            student.remarks = form.remarks.data
+
+            # Teacher assignment
+            student.teacher_id = form.teacher_id.data
+
+            # Admission checkbox + date
+            student.is_admitted = form.is_admitted.data
+            if form.is_admitted.data:
+                student.admission_date = form.admission_date.data or datetime.now().date()
+            else:
+                student.admission_date = None
+
+            db.session.commit()
+            flash('Student updated successfully!', 'success')
+            return redirect(url_for('main.admin_dashboard'))
         else:
-            student.teacher_id = teacher_id_value
-        
-        is_admitted = request.form.get('is_admitted') == 'on'
-        student.is_admitted = is_admitted
-        
-        if is_admitted:
-            admission_date = request.form.get('admission_date')
-            if admission_date:
-                student.admission_date = datetime.strptime(admission_date, '%Y-%m-%d').date()
-            elif not student.admission_date:
-                student.admission_date = datetime.now().date()
-        else:
-            student.admission_date = None
-        
-        db.session.commit()
-        flash('Student updated successfully!')
-        return redirect(url_for('main.admin_dashboard'))
-    
-    return render_template('edit_student_admin.html', student=student, teachers=teachers, is_admin=True)
+            flash('Form validation failed. Please check all required fields.', 'danger')
+    else:
+        form = EditStudentForm(obj=student)
+        form.teacher_id.choices = teacher_choices
+        # Populate boolean and date manually if needed
+        form.is_admitted.data = student.is_admitted
+        form.admission_date.data = student.admission_date
+
+    return render_template('edit_student_admin.html', form=form, student=student, is_admin=True)
+
+
 
 @main.route('/get_teachers')
 def get_teachers():
@@ -394,46 +454,51 @@ def view_student(id):
     student = Student.query.get_or_404(id)
     return render_template('view_student.html', student=student)
 
+from datetime import datetime
+
 @main.route('/admin/add_student', methods=['GET', 'POST'])
 def add_student_admin():
     if not session.get('admin'):
         return redirect(url_for('main.login'))
-    
+
+    form = AddStudentForm()
+
+    # Dynamically set teacher choices
     teachers = Teacher.query.all()
-    
-    if request.method == 'POST':
+    form.teacher_id.choices = [(teacher.id, teacher.name) for teacher in teachers] if teachers else [(None, 'No teachers available')]
+
+    if form.validate_on_submit():
         try:
             student = Student(
-                student_name=request.form['student_name'],
-                father_name=request.form.get('father_name'),
-                mother_name=request.form.get('mother_name'),
-                mobile_number=request.form['mobile_number'],
-                student_class=request.form['student_class'],
-                village=request.form.get('village'),
-                previous_school=request.form.get('previous_school'),
-                remarks=request.form.get('remarks'),
-                teacher_id=request.form.get('teacher_id') if request.form.get('teacher_id') != 'admin' else None,
-                is_admitted=request.form.get('is_admitted') == 'on'
+                student_name=form.student_name.data,
+                father_name=form.father_name.data,
+                mother_name=form.mother_name.data,
+                mobile_number=form.mobile_number.data,
+                student_class=form.student_class.data,
+                village=form.village.data,
+                previous_school=form.previous_school.data,
+                remarks=form.remarks.data,
+                is_admitted=form.is_admitted.data,
+                teacher_id=form.teacher_id.data if form.teacher_id.data else None
             )
-            
-            if student.is_admitted:
-                admission_date = request.form.get('admission_date')
-                if admission_date:
-                    student.admission_date = datetime.strptime(admission_date, '%Y-%m-%d').date()
-                else:
-                    student.admission_date = datetime.now().date()
-            
+
+            # Set admission date only if admitted
+            if form.is_admitted.data:
+                student.admission_date = datetime.now().date()  # Automatically set today's date
+
             db.session.add(student)
             db.session.commit()
-            
-            flash('Student added successfully!')
+
+            flash('Student added successfully!', 'success')
             return redirect(url_for('main.admin_dashboard'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Error adding student: {str(e)}')
-            return render_template('add_student_admin.html', teachers=teachers)
-    
-    return render_template('add_student_admin.html', teachers=teachers)
+            flash(f'Error adding student: {str(e)}', 'danger')
+
+    return render_template('add_student_admin.html', form=form, teachers=teachers)
+
+
+ 
 
 @main.route('/admin/teacher_stats/<int:teacher_id>')
 def teacher_stats(teacher_id):

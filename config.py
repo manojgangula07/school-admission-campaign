@@ -13,12 +13,7 @@ class Config:
     # SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
     SQLALCHEMY_DATABASE_URI = os.getenv('PROD_DATABASE_URL')
     DEBUG = False
+    WTF_CSRF_ENABLED = True
 
-# class DevelopmentConfig(Config):
-#     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
-#     DEBUG = True
 
-# class ProductionConfig(Config):
-#     SQLALCHEMY_DATABASE_URI = os.getenv('PROD_DATABASE_URL')
-#     DEBUG = False
 

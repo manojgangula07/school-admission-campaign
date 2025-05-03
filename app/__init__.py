@@ -7,10 +7,13 @@ from config import Config
 import os
 from werkzeug.security import generate_password_hash
 
+# Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
+
+# Set the login view for Flask-Login
 login_manager.login_view = 'main.login'
 
 def init_db(app):
@@ -26,7 +29,7 @@ def init_db(app):
         # Check if admin exists
         admin = Teacher.query.filter_by(email="admin@admin.com").first()
         if not admin:
-            # Create admin account
+            # Create admin account if it doesn't exist
             admin = Teacher(
                 name="Admin",
                 email="admin@admin.com",
@@ -42,24 +45,30 @@ def init_db(app):
                 print(f"Error creating admin account: {e}")
 
 def create_app():
+    """Create and configure the Flask app"""
     app = Flask(__name__, template_folder='templates')
+    
+    # Load app configuration
     app.config.from_object(Config)
 
+    # Initialize extensions with the app
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
 
+    # Setup user loader function for Flask-Login
     from .models import Teacher
 
     @login_manager.user_loader
     def load_user(user_id):
         return Teacher.query.get(int(user_id))
 
+    # Register blueprints (for routing)
     from .routes import main
     app.register_blueprint(main)
 
-    # Initialize database and create tables
+    # Initialize database and create tables if needed
     init_db(app)
 
     return app

@@ -1,114 +1,86 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Edit Student</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="container mt-4">
-    <h1>Krishnaveni Talent School Ramannapet</h1>
-    <h2>Edit Student</h2>
+{% extends "base.html" %}
 
-    <div class="mb-4">
-        <a href="{{ url_for('main.admin_dashboard' if is_admin else 'main.teacher_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+{% block title %}Edit Student{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">✏️ Edit Student</h2>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label">Student Name</label>
+            {{ form.student_name(class="form-control", required=True) }}
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label">Father Name</label>
+            {{ form.father_name(class="form-control") }}
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label">Mother Name</label>
+            {{ form.mother_name(class="form-control") }}
+        </div>
+
+        <div class="col-md-6">
+            <label class="form-label">Mobile Number</label>
+            {{ form.mobile_number(class="form-control") }}
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">Class</label>
+            {{ form.student_class(class="form-select") }}
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">Village</label>
+            {{ form.village(class="form-control") }}
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">Previous School</label>
+            {{ form.previous_school(class="form-control") }}
+        </div>
+
+        <div class="col-12">
+            <label class="form-label">Remarks</label>
+            {{ form.remarks(class="form-control") }}
+        </div>
+
+        <div class="col-md-6 mt-3">
+            <label class="form-label">Assign Teacher</label>
+            {{ form.teacher_id(class="form-select") }}
+        </div>
+
+        <div class="col-md-6 mt-3">
+            <div class="form-check">
+                {{ form.is_admitted(class="form-check-input", id="is_admitted") }}
+                <label class="form-check-label" for="is_admitted">Mark as Admitted</label>
+            </div>
+
+            <div class="mt-2" id="admission_date_div" {% if not form.is_admitted.data %}style="display:none;"{% endif %}>
+                <label class="form-label">Admission Date</label>
+                {{ form.admission_date(class="form-control") }}
+            </div>
+        </div>
     </div>
 
-    <form method="POST">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        
-        <div class="mb-3">
-            <label for="student_name" class="form-label">Student Name</label>
-            <input type="text" class="form-control" id="student_name" name="student_name" value="{{ student.student_name }}" required>
-        </div>
+    <div class="mt-4 d-grid d-md-flex gap-2">
+        <button type="submit" class="btn btn-primary">Update</button>
+        <a href="{{ url_for('main.admin_dashboard') }}" class="btn btn-secondary">Back</a>
+    </div>
+</form>
 
-        <div class="mb-3">
-            <label for="father_name" class="form-label">Father's Name</label>
-            <input type="text" class="form-control" id="father_name" name="father_name" value="{{ student.father_name }}">
-        </div>
-
-        <div class="mb-3">
-            <label for="mother_name" class="form-label">Mother's Name</label>
-            <input type="text" class="form-control" id="mother_name" name="mother_name" value="{{ student.mother_name }}">
-        </div>
-
-        <div class="mb-3">
-            <label for="mobile_number" class="form-label">Mobile Number</label>
-            <input type="text" class="form-control" id="mobile_number" name="mobile_number" value="{{ student.mobile_number }}" required>
-        </div>
-
-        <div class="mb-3">
-            <label for="student_class" class="form-label">Class</label>
-            <select class="form-control" id="student_class" name="student_class" required>
-                <option value="">Select Class</option>
-                <option value="NUR" {% if student.student_class == 'NUR' %}selected{% endif %}>NURSERY</option>
-                <option value="LKG" {% if student.student_class == 'LKG' %}selected{% endif %}>LKG</option>
-                <option value="UKG" {% if student.student_class == 'UKG' %}selected{% endif %}>UKG</option>
-                <option value="1" {% if student.student_class == '1' %}selected{% endif %}>1st Class</option>
-                <option value="2" {% if student.student_class == '2' %}selected{% endif %}>2nd Class</option>
-                <option value="3" {% if student.student_class == '3' %}selected{% endif %}>3rd Class</option>
-                <option value="4" {% if student.student_class == '4' %}selected{% endif %}>4th Class</option>
-                <option value="5" {% if student.student_class == '5' %}selected{% endif %}>5th Class</option>
-                <option value="6" {% if student.student_class == '6' %}selected{% endif %}>6th Class</option>
-                <option value="7" {% if student.student_class == '7' %}selected{% endif %}>7th Class</option>
-                <option value="8" {% if student.student_class == '8' %}selected{% endif %}>8th Class</option>
-                <option value="9" {% if student.student_class == '9' %}selected{% endif %}>9th Class</option>
-                <option value="10" {% if student.student_class == '10' %}selected{% endif %}>10th Class</option>
-            </select>
-        </div>
-
-        <div class="mb-3">
-            <label for="village" class="form-label">Village</label>
-            <input type="text" class="form-control" id="village" name="village" value="{{ student.village }}">
-        </div>
-
-        <div class="mb-3">
-            <label for="previous_school" class="form-label">Previous School</label>
-            <input type="text" class="form-control" id="previous_school" name="previous_school" value="{{ student.previous_school }}">
-        </div>
-
-        {% if is_admin %}
-        <div class="mb-3">
-            <label for="teacher_id" class="form-label">Assign Teacher</label>
-            <select class="form-control" id="teacher_id" name="teacher_id">
-                <option value="admin">No Teacher (Admin's Student)</option>
-                {% for teacher in teachers %}
-                <option value="{{ teacher.id }}" {% if student.teacher_id == teacher.id %}selected{% endif %}>{{ teacher.name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="mb-3">
-            <div class="form-check mb-2">
-                <input type="checkbox" class="form-check-input" id="is_admitted" name="is_admitted" {% if student.is_admitted %}checked{% endif %}>
-                <label class="form-check-label" for="is_admitted">Is Admitted</label>
-            </div>
-            <div id="admission_date_container" class="mt-2" {% if not student.is_admitted %}style="display: none;"{% endif %}>
-                <label for="admission_date" class="form-label">Admission Date</label>
-                <input type="date" class="form-control" id="admission_date" name="admission_date" value="{{ student.admission_date.strftime('%Y-%m-%d') if student.admission_date else '' }}">
-            </div>
-        </div>
-        {% endif %}
-
-        <div class="mb-3">
-            <label for="remarks" class="form-label">Remarks</label>
-            <textarea class="form-control" id="remarks" name="remarks" rows="3">{{ student.remarks }}</textarea>
-        </div>
-
-        <button type="submit" class="btn btn-primary">Update Student</button>
-    </form>
-
-    <script>
-    document.getElementById('is_admitted').addEventListener('change', function() {
-        const admissionDateContainer = document.getElementById('admission_date_container');
-        if (this.checked) {
-            admissionDateContainer.style.display = 'block';
-            if (!document.getElementById('admission_date').value) {
-                document.getElementById('admission_date').value = new Date().toISOString().split('T')[0];
-            }
-        } else {
-            admissionDateContainer.style.display = 'none';
-        }
-    });
-    </script>
-</body>
-</html>
+<script>
+document.getElementById('is_admitted')?.addEventListener('change', function() {
+    const dateDiv = document.getElementById('admission_date_div');
+    if (this.checked) {
+        dateDiv.style.display = 'block';
+    } else {
+        dateDiv.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}
