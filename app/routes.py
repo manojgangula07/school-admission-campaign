@@ -149,6 +149,10 @@ def admin_dashboard():
         page=page_teachers, per_page=teachers_per_page, error_out=False
     )
 
+    # Calculate total_teacher_pages
+    total_student_pages = students.pages
+    total_teacher_pages = teachers_paginated.pages
+
     # Fetch filter options efficiently
     all_teachers = Teacher.query.all()
     all_students_data = Student.query.with_entities(Student.student_class, Student.village).all()
@@ -194,6 +198,8 @@ def admin_dashboard():
     return render_template('admin_dashboard.html',
                            students=students,
                            teachers=teachers_paginated,
+                           total_student_pages=total_student_pages,
+                           total_teacher_pages=total_teacher_pages,  # ✅ Pass total_teacher_pages to the template
                            all_teachers=all_teachers,
                            classes=classes,
                            villages=villages,
@@ -207,6 +213,7 @@ def admin_dashboard():
                            admitted=admitted_count,
                            not_admitted=not_admitted_count,
                            teacher_stats=teacher_stats)
+
 
 
 # Add, Edit, and Remove Teachers (Admin & Self-creation)
