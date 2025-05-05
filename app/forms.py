@@ -17,13 +17,13 @@ from wtforms.validators import DataRequired, Length
 class AddStudentForm(FlaskForm):
     student_name = StringField('Student Name', validators=[DataRequired(), Length(max=100)])
     father_name = StringField('Father Name', validators=[DataRequired(), Length(max=100)])
-    mother_name = StringField('Mother Name', validators=[DataRequired(), Length(max=100)])
+    mother_name = StringField('Mother Name', validators=[Length(max=100)])
     mobile_number = StringField('Mobile Number', validators=[DataRequired(), Length(max=15)])
     student_class = SelectField('Class', choices=[
         ('NUR', 'NUR'), ('LKG', 'LKG'), ('UKG', 'UKG'), ('1', '1'), ('2', '2'), ('3', '3'), 
         ('4', '4'), ('5', '5'), ('6', '6'), ('7', '7'), ('8', '8'), ('9', '9'), ('10', '10')
     ], validators=[DataRequired()])
-    village = StringField('Village', validators=[Length(max=100)])
+    village = StringField('Village', validators=[DataRequired(),Length(max=100)])
     previous_school = StringField('Previous School', validators=[Length(max=100)])
     remarks = StringField('Remarks', validators=[Length(max=255)])
     is_admitted = BooleanField('Is Admitted?')

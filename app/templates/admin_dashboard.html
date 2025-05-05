@@ -52,7 +52,7 @@
                     <td>{{ teacher.name }}</td>
                     <td>{{ teacher.email }}</td>
                     <td>{{ teacher.mobile_number }}</td>
-                    <td class="d-flex flex-wrap gap-1">
+                    <td class="d-flex flex-nowrap gap-1">
                         <a href="/admin/edit_teacher/{{ teacher.id }}" class="btn btn-sm btn-warning">✏️ Edit</a>
                         <form action="{{ url_for('main.delete_teacher', id=teacher.id) }}" method="POST" style="display:inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -170,7 +170,7 @@
                     {% endif %}
                 </td>
                 <td>{{ student.admission_date.strftime('%Y-%m-%d') if student.admission_date else '-' }}</td>
-                <td class="d-flex flex-wrap gap-1">
+                <td class="d-flex flex-nowrap gap-1">
                     <a href="{{ url_for('main.edit_student_admin', id=student.id) }}" class="btn btn-sm btn-warning">✏️ Edit</a>
                     <a href="{{ url_for('main.view_student', id=student.id) }}" class="btn btn-sm btn-info">👁️ View</a>
                     <form action="{{ url_for('main.delete_student', id=student.id) }}" method="POST" style="display:inline;">
@@ -195,6 +195,44 @@
         {% endfor %}
     </ul>
 </nav>
+
+<h3>Duplicate Student Entries </h3>
+{% if duplicates %}
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>Student ID</th>
+        <th>Name</th>
+        <th>Father Name</th>
+        <th>Mother Name</th>
+        <th>Class</th>
+        <th>Village</th>
+        <th>Mobile Number</th>
+        <th>Entered By</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for student in duplicates %}
+        <tr>
+            <td>{{ student.id }}</td>
+            <td>{{ student.student_name }}</td>
+            <td>{{ student.father_name }}</td>
+            <td>{{ student.mother_name }}</td>
+            <td>{{ student.student_class }}</td>
+            <td>{{ student.village }}</td>
+            <td>{{ student.mobile_number }}</td>
+            <td>{{ student.teacher.name if student.teacher else 'N/A' }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>No duplicate student entries found.</p>
+{% endif %}
+
+
+
+
 
 <!-- Charts + Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

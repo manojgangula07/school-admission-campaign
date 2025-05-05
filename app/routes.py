@@ -136,7 +136,7 @@ def admin_dashboard():
             teacher_id = int(teacher_filter)
             student_query = student_query.filter(Student.teacher_id == teacher_id)
         except ValueError:
-            pass  # ignore invalid teacher ID
+            pass
 
     # Paginate students
     students = student_query.order_by(Student.id.desc()).paginate(
@@ -149,15 +149,17 @@ def admin_dashboard():
         page=page_teachers, per_page=teachers_per_page, error_out=False
     )
 
-    # Calculate total_teacher_pages
+    # Total page counts
     total_student_pages = students.pages
     total_teacher_pages = teachers_paginated.pages
 
-    # Fetch filter options efficiently
+    # Filter options
     all_teachers = Teacher.query.all()
     all_students_data = Student.query.with_entities(Student.student_class, Student.village).all()
     classes = [c[0] for c in db.session.query(Student.student_class).distinct().filter(Student.student_class.isnot(None)).all()]
-    villages = [v[0] for v in db.session.query(Student.village).distinct().filter(Student.village.isnot(None)).all()]
+    villages = [v[0] for v in db.session.query(Student.village)
+                          .filter(Student.village.isnot(None))
+                          .group_by(Student.village).all()]
 
     # Chart: students by teacher
     students_by_teacher = db.session.query(Teacher.name, func.count(Student.id))\
@@ -171,9 +173,7 @@ def admin_dashboard():
     admitted_count = Student.query.filter_by(is_admitted=True).count()
     not_admitted_count = Student.query.filter_by(is_admitted=False).count()
 
-    # Optimized teacher stats
     teacher_ids = [t.id for t in all_teachers]
-
     admitted_query = db.session.query(Student.teacher_id, func.count())\
         .filter(Student.is_admitted == True, Student.teacher_id.in_(teacher_ids))\
         .group_by(Student.teacher_id).all()
@@ -195,11 +195,38 @@ def admin_dashboard():
     for tid, cls, count in class_stats_query:
         teacher_stats[tid]['class_stats'].append((cls, count))
 
+    # ✅ Duplicate logic (matches on 6 fields + different teachers)
+    dup_subquery = db.session.query(
+        Student.student_name,
+        Student.father_name,
+        Student.mother_name,
+        Student.student_class,
+        Student.village,
+        Student.mobile_number
+    ).group_by(
+        Student.student_name,
+        Student.father_name,
+        Student.mother_name,
+        Student.student_class,
+        Student.village,
+        Student.mobile_number
+    ).having(func.count(func.distinct(Student.teacher_id)) > 1).subquery()
+
+    duplicates = db.session.query(Student).join(
+        dup_subquery,
+        (Student.student_name == dup_subquery.c.student_name) &
+        (Student.father_name == dup_subquery.c.father_name) &
+        (Student.mother_name == dup_subquery.c.mother_name) &
+        (Student.student_class == dup_subquery.c.student_class) &
+        (Student.village == dup_subquery.c.village) &
+        (Student.mobile_number == dup_subquery.c.mobile_number)
+    ).order_by(Student.student_name).all()
+
     return render_template('admin_dashboard.html',
                            students=students,
                            teachers=teachers_paginated,
                            total_student_pages=total_student_pages,
-                           total_teacher_pages=total_teacher_pages,  # ✅ Pass total_teacher_pages to the template
+                           total_teacher_pages=total_teacher_pages,
                            all_teachers=all_teachers,
                            classes=classes,
                            villages=villages,
@@ -212,10 +239,8 @@ def admin_dashboard():
                            teacher_filter=teacher_filter,
                            admitted=admitted_count,
                            not_admitted=not_admitted_count,
-                           teacher_stats=teacher_stats)
-
-
-
+                           teacher_stats=teacher_stats,
+                           duplicates=duplicates)  # ✅ Pass to template
 # Add, Edit, and Remove Teachers (Admin & Self-creation)
 
 @main.route('/admin/add_teacher', methods=['GET', 'POST'])
