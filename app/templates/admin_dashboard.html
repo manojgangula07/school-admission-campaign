@@ -230,39 +230,98 @@
   <p>No duplicate student entries found.</p>
 {% endif %}
 
-
-
-
-
 <!-- Charts + Scripts -->
+<!-- Include Chart.js and DataLabels plugin -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Chart Initialization
         const studentsByTeacherLabels = {{ students_by_teacher | map(attribute=0) | list | tojson }};
         const studentsByTeacherData = {{ students_by_teacher | map(attribute=1) | list | tojson }};
-        const studentsByClassLabels = {{ students_by_class | map(attribute=0) | list | tojson }};
-        const studentsByClassData = {{ students_by_class | map(attribute=1) | list | tojson }};
+        const studentsByClassLabels = {{ students_by_class_labels | tojson }};
+        const admittedClassCounts = {{ admitted_class_counts | tojson }};
+        const notAdmittedClassCounts = {{ not_admitted_class_counts | tojson }};
         const admitted = {{ admitted | tojson }};
         const notAdmitted = {{ not_admitted | tojson }};
 
+        // Students per Teacher Chart
         new Chart(document.getElementById('studentsPerTeacherChart'), {
             type: 'bar',
-            data: { labels: studentsByTeacherLabels, datasets: [{ label: 'Students per Teacher', data: studentsByTeacherData, backgroundColor: '#0d6efd' }] },
-            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            data: {
+                labels: studentsByTeacherLabels,
+                datasets: [{
+                    label: 'Students per Teacher',
+                    data: studentsByTeacherData,
+                    backgroundColor: '#0d6efd'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        color: '#000',
+                        font: { weight: 'bold' },
+                        formatter: Math.round
+                    }
+                },
+                scales: { y: { beginAtZero: true } }
+            },
+            plugins: [ChartDataLabels]
         });
 
+        // Students per Class Chart (side-by-side bars for admitted vs not admitted)
         new Chart(document.getElementById('studentsPerClassChart'), {
             type: 'bar',
-            data: { labels: studentsByClassLabels, datasets: [{ label: 'Students per Class', data: studentsByClassData, backgroundColor: '#fd7e14' }] },
-            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            data: {
+                labels: studentsByClassLabels,
+                datasets: [
+                    {
+                        label: 'Admitted',
+                        data: admittedClassCounts,
+                        backgroundColor: '#28a745'
+                    },
+                    {
+                        label: 'Not Admitted',
+                        data: notAdmittedClassCounts,
+                        backgroundColor: '#fd7e14'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        color: '#000',
+                        font: { weight: 'bold' },
+                        formatter: Math.round
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true },
+                    x: { stacked: false }
+                }
+            },
+            plugins: [ChartDataLabels]
         });
 
+        // Admissions Pie Chart
         new Chart(document.getElementById('admissionsChart'), {
             type: 'pie',
-            data: { labels: ['Admitted', 'Not Admitted'], datasets: [{ data: [admitted, notAdmitted], backgroundColor: ['#198754', '#ffc107'] }] }
+            data: {
+                labels: ['Admitted', 'Not Admitted'],
+                datasets: [{
+                    data: [admitted, notAdmitted],
+                    backgroundColor: ['#198754', '#ffc107']
+                }]
+            }
         });
 
+        // Toggle teacher stat rows
         window.toggleTeacherStats = function (id) {
             const row = document.getElementById('teacher-stats-' + id);
             row.style.display = (row.style.display === 'none') ? '' : 'none';
@@ -270,20 +329,48 @@
     });
 </script>
 
-<!-- Per-Teacher Charts -->
+<!-- Per-Teacher Charts with Data Labels -->
 <script>
     {% for teacher in teachers.items %}
         {% set stats = teacher_stats.get(teacher.id, {'admitted': 0, 'not_admitted': 0, 'class_stats': []}) %}
+
         new Chart(document.getElementById('teacherAdmissionChart-{{ teacher.id }}'), {
             type: 'pie',
-            data: { labels: ['Admitted', 'Not Admitted'], datasets: [{ data: [{{ stats.admitted }}, {{ stats.not_admitted }}], backgroundColor: ['#28a745', '#ffc107'] }] }
+            data: {
+                labels: ['Admitted', 'Not Admitted'],
+                datasets: [{
+                    data: [{{ stats.admitted }}, {{ stats.not_admitted }}],
+                    backgroundColor: ['#28a745', '#ffc107']
+                }]
+            }
         });
 
         new Chart(document.getElementById('teacherClassChart-{{ teacher.id }}'), {
             type: 'bar',
-            data: { labels: {{ stats.class_stats | map(attribute=0) | list | tojson }}, datasets: [{ label: 'Students by Class', data: {{ stats.class_stats | map(attribute=1) | list | tojson }}, backgroundColor: '#17a2b8' }] },
-            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            data: {
+                labels: {{ stats.class_stats | map(attribute=0) | list | tojson }},
+                datasets: [{
+                    label: 'Students by Class',
+                    data: {{ stats.class_stats | map(attribute=1) | list | tojson }},
+                    backgroundColor: '#17a2b8'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        color: '#000',
+                        font: { weight: 'bold' },
+                        formatter: Math.round
+                    }
+                },
+                scales: { y: { beginAtZero: true } }
+            },
+            plugins: [ChartDataLabels]
         });
     {% endfor %}
 </script>
+
 {% endblock %}

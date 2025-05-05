@@ -155,23 +155,34 @@ def admin_dashboard():
 
     # Filter options
     all_teachers = Teacher.query.all()
-    all_students_data = Student.query.with_entities(Student.student_class, Student.village).all()
     classes = [c[0] for c in db.session.query(Student.student_class).distinct().filter(Student.student_class.isnot(None)).all()]
     villages = [v[0] for v in db.session.query(Student.village)
                           .filter(Student.village.isnot(None))
-                          .group_by(Student.village).all()]
+                          .group_by(Student.village).order_by(Student.village).all()]
 
     # Chart: students by teacher
     students_by_teacher = db.session.query(Teacher.name, func.count(Student.id))\
-        .join(Student).group_by(Teacher.name).all()
+        .join(Student).group_by(Teacher.name)\
+        .order_by(func.count(Student.id).desc()).all()
 
-    # Chart: students by class
-    students_by_class = db.session.query(Student.student_class, func.count(Student.id))\
-        .group_by(Student.student_class).all()
+    # Custom class order
+    class_order = ['Nur', 'LKG', 'UKG'] + [str(i) for i in range(1, 11)]
+
+    # Classes from DB sorted according to order
+    sorted_classes = sorted(classes, key=lambda x: class_order.index(x) if x in class_order else len(class_order))
+
+    # Prepare class-wise admitted and not admitted counts
+    admitted_class_counts = []
+    not_admitted_class_counts = []
+    for cls in sorted_classes:
+        admitted_class_counts.append(Student.query.filter_by(student_class=cls, is_admitted=True).count())
+        not_admitted_class_counts.append(Student.query.filter_by(student_class=cls, is_admitted=False).count())
+
+    students_by_class = list(zip(sorted_classes, [a + b for a, b in zip(admitted_class_counts, not_admitted_class_counts)]))
 
     # Admission stats
-    admitted_count = Student.query.filter_by(is_admitted=True).count()
-    not_admitted_count = Student.query.filter_by(is_admitted=False).count()
+    admitted_count = sum(admitted_class_counts)
+    not_admitted_count = sum(not_admitted_class_counts)
 
     teacher_ids = [t.id for t in all_teachers]
     admitted_query = db.session.query(Student.teacher_id, func.count())\
@@ -232,6 +243,9 @@ def admin_dashboard():
                            villages=villages,
                            students_by_teacher=students_by_teacher or [],
                            students_by_class=students_by_class or [],
+                           admitted_class_counts=admitted_class_counts,
+                           not_admitted_class_counts=not_admitted_class_counts,
+                           students_by_class_labels=sorted_classes,
                            admission_stats={"Admitted": admitted_count, "Not Admitted": not_admitted_count},
                            search_name=search_name,
                            class_filter=class_filter,
@@ -240,7 +254,8 @@ def admin_dashboard():
                            admitted=admitted_count,
                            not_admitted=not_admitted_count,
                            teacher_stats=teacher_stats,
-                           duplicates=duplicates)  # ✅ Pass to template
+                           duplicates=duplicates)
+ # ✅ Pass to template
 # Add, Edit, and Remove Teachers (Admin & Self-creation)
 
 @main.route('/admin/add_teacher', methods=['GET', 'POST'])
