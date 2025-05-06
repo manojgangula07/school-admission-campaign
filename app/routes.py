@@ -156,9 +156,14 @@ def admin_dashboard():
     # Filter options
     all_teachers = Teacher.query.all()
     classes = [c[0] for c in db.session.query(Student.student_class).distinct().filter(Student.student_class.isnot(None)).all()]
-    villages = [v[0] for v in db.session.query(Student.village)
-                          .filter(Student.village.isnot(None))
-                          .group_by(Student.village).order_by(Student.village).all()]
+    villages = sorted(set(
+    v[0].strip().title()
+    for v in db.session.query(Student.village)
+    .filter(Student.village.isnot(None))
+    .all()
+    if v[0]
+))
+
 
     # Chart: students by teacher
     students_by_teacher = db.session.query(Teacher.name, func.count(Student.id))\
@@ -166,7 +171,7 @@ def admin_dashboard():
         .order_by(func.count(Student.id).desc()).all()
 
     # Custom class order
-    class_order = ['Nur', 'LKG', 'UKG'] + [str(i) for i in range(1, 11)]
+    class_order = ['NUR', 'LKG', 'UKG'] + [str(i) for i in range(1, 11)]
 
     # Classes from DB sorted according to order
     sorted_classes = sorted(classes, key=lambda x: class_order.index(x) if x in class_order else len(class_order))
