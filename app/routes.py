@@ -212,31 +212,25 @@ def admin_dashboard():
         teacher_stats[tid]['class_stats'].append((cls, count))
 
     # ✅ Duplicate logic (matches on 6 fields + different teachers)
+    # Duplicate detection using only class, village, and mobile number
     dup_subquery = db.session.query(
-        Student.student_name,
-        Student.father_name,
-        Student.mother_name,
         Student.student_class,
         Student.village,
         Student.mobile_number
     ).group_by(
-        Student.student_name,
-        Student.father_name,
-        Student.mother_name,
         Student.student_class,
         Student.village,
         Student.mobile_number
     ).having(func.count(func.distinct(Student.teacher_id)) > 1).subquery()
 
+    # Get full student records that match the above
     duplicates = db.session.query(Student).join(
         dup_subquery,
-        (Student.student_name == dup_subquery.c.student_name) &
-        (Student.father_name == dup_subquery.c.father_name) &
-        (Student.mother_name == dup_subquery.c.mother_name) &
         (Student.student_class == dup_subquery.c.student_class) &
         (Student.village == dup_subquery.c.village) &
         (Student.mobile_number == dup_subquery.c.mobile_number)
     ).order_by(Student.student_name).all()
+
 
     return render_template('admin_dashboard.html',
                            students=students,
@@ -260,6 +254,26 @@ def admin_dashboard():
                            not_admitted=not_admitted_count,
                            teacher_stats=teacher_stats,
                            duplicates=duplicates)
+
+
+@main.route('/admin/normalize_villages')
+def normalize_villages():
+    if not session.get('admin'):
+        return redirect(url_for('main.login'))
+
+    students = Student.query.filter(Student.village.isnot(None)).all()
+    updated = 0
+    for student in students:
+        cleaned = student.village.strip().title()
+        if student.village != cleaned:
+            student.village = cleaned
+            updated += 1
+
+    db.session.commit()
+    return f"✅ Normalized {updated} village names."
+
+
+
  # ✅ Pass to template
 # Add, Edit, and Remove Teachers (Admin & Self-creation)
 
