@@ -337,34 +337,35 @@ def add_student():
     form = AddStudentByTeacherForm()
 
     # Automatically assign the logged-in teacher's ID to the teacher_id field
-    form.teacher_id.data = current_user.id  # Set the teacher to the current logged-in user
+    form.teacher_id.data = current_user.id
 
-    if form.validate_on_submit():  # Check if form is validated and submitted correctly
+    if form.validate_on_submit():
+        # Normalize village only
+        cleaned_village = form.village.data.strip().title() if form.village.data else None
+
         student = Student(
             student_name=form.student_name.data,
             father_name=form.father_name.data,
             mother_name=form.mother_name.data,
             mobile_number=form.mobile_number.data,
             student_class=form.student_class.data,
-            village=form.village.data,
+            village=cleaned_village,
             previous_school=form.previous_school.data,
             remarks=form.remarks.data,
-            teacher_id=form.teacher_id.data  # Automatically assign the teacher's ID from the hidden field
+            teacher_id=form.teacher_id.data
         )
-        
-        # Add the student record to the database
+
         db.session.add(student)
         try:
-            db.session.commit()  # Save the record
+            db.session.commit()
             flash('Student added successfully!', 'success')
-            return redirect(url_for('main.teacher_dashboard'))  # Redirect to teacher dashboard after successful form submission
+            return redirect(url_for('main.teacher_dashboard'))
         except Exception as e:
-            db.session.rollback()  # Rollback if there's an error in saving the student
+            db.session.rollback()
             flash(f'Error adding student: {str(e)}', 'danger')
 
     return render_template('add_student.html', form=form)
 
-  
 
 
 @main.route('/edit_student/<int:id>', methods=['GET', 'POST'])
@@ -477,7 +478,7 @@ def edit_student_admin(id):
             student.mother_name = form.mother_name.data
             student.mobile_number = form.mobile_number.data
             student.student_class = form.student_class.data
-            student.village = form.village.data
+            student.village = form.village.data.strip().title() if form.village.data else None  # Normalize
             student.previous_school = form.previous_school.data
             student.remarks = form.remarks.data
 
@@ -534,6 +535,8 @@ def add_student_admin():
     form.teacher_id.choices = [(teacher.id, teacher.name) for teacher in teachers] if teachers else [(None, 'No teachers available')]
 
     if form.validate_on_submit():
+        cleaned_village = form.village.data.strip().title() if form.village.data else None
+
         try:
             student = Student(
                 student_name=form.student_name.data,
@@ -541,7 +544,7 @@ def add_student_admin():
                 mother_name=form.mother_name.data,
                 mobile_number=form.mobile_number.data,
                 student_class=form.student_class.data,
-                village=form.village.data,
+                village=cleaned_village,
                 previous_school=form.previous_school.data,
                 remarks=form.remarks.data,
                 is_admitted=form.is_admitted.data,
