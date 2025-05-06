@@ -256,21 +256,21 @@ def admin_dashboard():
                            duplicates=duplicates)
 
 
-@main.route('/admin/normalize_villages')
-def normalize_villages():
-    if not session.get('admin'):
-        return redirect(url_for('main.login'))
+# @main.route('/admin/normalize_villages')
+# def normalize_villages():
+#     if not session.get('admin'):
+#         return redirect(url_for('main.login'))
 
-    students = Student.query.filter(Student.village.isnot(None)).all()
-    updated = 0
-    for student in students:
-        cleaned = student.village.strip().title()
-        if student.village != cleaned:
-            student.village = cleaned
-            updated += 1
+#     students = Student.query.filter(Student.village.isnot(None)).all()
+#     updated = 0
+#     for student in students:
+#         cleaned = student.village.strip().title()
+#         if student.village != cleaned:
+#             student.village = cleaned
+#             updated += 1
 
-    db.session.commit()
-    return f"✅ Normalized {updated} village names."
+#     db.session.commit()
+#     return f"✅ Normalized {updated} village names."
 
 
 
