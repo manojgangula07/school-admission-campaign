@@ -216,11 +216,11 @@
         {% for student in duplicates %}
           <tr>
             <td>{{ student.id }}</td>
-            <td class="text-break">{{ student.student_name }}</td>
-            <td class="text-break">{{ student.father_name }}</td>
-            <td class="text-break">{{ student.mother_name }}</td>
+            <td>{{ student.student_name }}</td>
+            <td>{{ student.father_name }}</td>
+            <td>{{ student.mother_name }}</td>
             <td>{{ student.student_class }}</td>
-            <td class="text-break">{{ student.village }}</td>
+            <td>{{ student.village }}</td>
             <td>
               {% if student.mobile_number %}
                 <a href="tel:{{ student.mobile_number }}">{{ student.mobile_number }}</a>
@@ -228,7 +228,7 @@
                 N/A
               {% endif %}
             </td>
-            <td class="text-break">{{ student.teacher.name if student.teacher else 'N/A' }}</td>
+            <td>{{ student.teacher.name if student.teacher else 'N/A' }}</td>
           </tr>
         {% endfor %}
       </tbody>
