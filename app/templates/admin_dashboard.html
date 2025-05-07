@@ -196,38 +196,46 @@
     </ul>
 </nav>
 
-<h3>Duplicate Student Entries </h3>
+<h3 class="mb-3 text-center text-md-start">Duplicate Student Entries</h3>
 {% if duplicates %}
-  <table class="table table-bordered table-striped">
-    <thead>
-      <tr>
-        <th>Student ID</th>
-        <th>Name</th>
-        <th>Father Name</th>
-        <th>Mother Name</th>
-        <th>Class</th>
-        <th>Village</th>
-        <th>Mobile Number</th>
-        <th>Entered By</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for student in duplicates %}
-        <tr>
-            <td>{{ student.id }}</td>
-            <td>{{ student.student_name }}</td>
-            <td>{{ student.father_name }}</td>
-            <td>{{ student.mother_name }}</td>
-            <td>{{ student.student_class }}</td>
-            <td>{{ student.village }}</td>
-            <td>{{ student.mobile_number }}</td>
-            <td>{{ student.teacher.name if student.teacher else 'N/A' }}</td>
+  <div class="table-responsive">
+    <table class="table table-striped table-hover table-bordered align-middle text-center">
+      <thead class="table-dark">
+        <tr class="align-middle">
+          <th scope="col">Student ID</th>
+          <th scope="col">Name</th>
+          <th scope="col">Father's Name</th>
+          <th scope="col">Mother's Name</th>
+          <th scope="col">Class</th>
+          <th scope="col">Village</th>
+          <th scope="col">Mobile Number</th>
+          <th scope="col">Entered By</th>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for student in duplicates %}
+          <tr>
+            <td>{{ student.id }}</td>
+            <td class="text-break">{{ student.student_name }}</td>
+            <td class="text-break">{{ student.father_name }}</td>
+            <td class="text-break">{{ student.mother_name }}</td>
+            <td>{{ student.student_class }}</td>
+            <td class="text-break">{{ student.village }}</td>
+            <td>
+              {% if student.mobile_number %}
+                <a href="tel:{{ student.mobile_number }}">{{ student.mobile_number }}</a>
+              {% else %}
+                N/A
+              {% endif %}
+            </td>
+            <td class="text-break">{{ student.teacher.name if student.teacher else 'N/A' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 {% else %}
-  <p>No duplicate student entries found.</p>
+  <div class="alert alert-info text-center">No duplicate student entries found.</div>
 {% endif %}
 
 <!-- Charts + Scripts -->
