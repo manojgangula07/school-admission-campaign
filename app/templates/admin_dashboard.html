@@ -63,16 +63,7 @@
                 </tr>
                 <tr id="teacher-stats-{{ teacher.id }}" style="display: none;">
                     <td colspan="5">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <h6>📈 Admission Status</h6>
-                                <canvas id="teacherAdmissionChart-{{ teacher.id }}"></canvas>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <h6>📘 Students by Class</h6>
-                                <canvas id="teacherClassChart-{{ teacher.id }}"></canvas>
-                            </div>
-                        </div>
+                        <div id="teacher-stats-container-{{ teacher.id }}" class="text-center text-muted">Loading...</div>
                     </td>
                 </tr>
                 {% else %}
@@ -197,7 +188,7 @@
 </nav>
 
 <h3 class="mb-3 text-center text-md-start">Duplicate Student Entries</h3>
-{% if duplicates %}
+{% if duplicates.items %}
   <div class="table-responsive">
     <table class="table table-striped table-hover table-bordered align-middle text-center">
       <thead class="table-dark">
@@ -213,7 +204,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for student in duplicates %}
+        {% for student in duplicates.items %}
           <tr>
             <td>{{ student.id }}</td>
             <td>{{ student.student_name }}</td>
@@ -221,25 +212,31 @@
             <td>{{ student.mother_name }}</td>
             <td>{{ student.student_class }}</td>
             <td>{{ student.village }}</td>
-            <td>
-              {% if student.mobile_number %}
-                <a href="tel:{{ student.mobile_number }}">{{ student.mobile_number }}</a>
-              {% else %}
-                N/A
-              {% endif %}
-            </td>
+            <td>{{ student.mobile_number }}</td>
             <td>{{ student.teacher.name if student.teacher else 'N/A' }}</td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+
+  <!-- Duplicate Pagination -->
+  <nav>
+    <ul class="pagination justify-content-center">
+      {% for page_num in range(1, duplicates.pages + 1) %}
+        <li class="page-item {% if page_num == duplicates.page %}active{% endif %}">
+          <a class="page-link" href="{{ url_for('main.admin_dashboard', page_students=students.page, page_teachers=teachers.page, page_duplicates=page_num, search_name=search_name, class_filter=class_filter, village_filter=village_filter, teacher_filter=teacher_filter) }}">{{ page_num }}</a>
+        </li>
+      {% endfor %}
+    </ul>
+  </nav>
 {% else %}
   <div class="alert alert-info text-center">No duplicate student entries found.</div>
 {% endif %}
 
 <!-- Charts + Scripts -->
 <!-- Include Chart.js and DataLabels plugin -->
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 
@@ -253,7 +250,7 @@
         const admitted = {{ admitted | tojson }};
         const notAdmitted = {{ not_admitted | tojson }};
 
-        // Students per Teacher Chart
+        // Chart: Students per Teacher
         new Chart(document.getElementById('studentsPerTeacherChart'), {
             type: 'bar',
             data: {
@@ -280,7 +277,7 @@
             plugins: [ChartDataLabels]
         });
 
-        // Students per Class Chart (side-by-side bars for admitted vs not admitted)
+        // Chart: Students per Class
         new Chart(document.getElementById('studentsPerClassChart'), {
             type: 'bar',
             data: {
@@ -317,7 +314,7 @@
             plugins: [ChartDataLabels]
         });
 
-        // Admissions Pie Chart
+        // Chart: Admissions Pie
         new Chart(document.getElementById('admissionsChart'), {
             type: 'pie',
             data: {
@@ -328,57 +325,81 @@
                 }]
             }
         });
-
-        // Toggle teacher stat rows
-        window.toggleTeacherStats = function (id) {
-            const row = document.getElementById('teacher-stats-' + id);
-            row.style.display = (row.style.display === 'none') ? '' : 'none';
-        };
     });
-</script>
 
-<!-- Per-Teacher Charts with Data Labels -->
-<script>
-    {% for teacher in teachers.items %}
-        {% set stats = teacher_stats.get(teacher.id, {'admitted': 0, 'not_admitted': 0, 'class_stats': []}) %}
+    // Dynamic loading of teacher stats
+    async function toggleTeacherStats(teacherId) {
+        const row = document.getElementById('teacher-stats-' + teacherId);
+        const container = document.getElementById('teacher-stats-container-' + teacherId);
 
-        new Chart(document.getElementById('teacherAdmissionChart-{{ teacher.id }}'), {
-            type: 'pie',
-            data: {
-                labels: ['Admitted', 'Not Admitted'],
-                datasets: [{
-                    data: [{{ stats.admitted }}, {{ stats.not_admitted }}],
-                    backgroundColor: ['#28a745', '#ffc107']
-                }]
+        if (row.style.display === 'none') {
+            row.style.display = '';
+            if (!container.dataset.loaded) {
+                container.innerHTML = "Loading...";
+                try {
+                    const res = await fetch(`/admin/teacher_stats/${teacherId}`);
+                    const data = await res.json();
+
+                    container.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <h6>📈 Admission Status</h6>
+                                <canvas id="teacherAdmissionChart-${teacherId}"></canvas>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <h6>📘 Students by Class</h6>
+                                <canvas id="teacherClassChart-${teacherId}"></canvas>
+                            </div>
+                        </div>
+                    `;
+
+                    new Chart(document.getElementById(`teacherAdmissionChart-${teacherId}`), {
+                        type: 'pie',
+                        data: {
+                            labels: ['Admitted', 'Not Admitted'],
+                            datasets: [{
+                                data: [data.admitted, data.not_admitted],
+                                backgroundColor: ['#28a745', '#ffc107']
+                            }]
+                        }
+                    });
+
+                    new Chart(document.getElementById(`teacherClassChart-${teacherId}`), {
+                        type: 'bar',
+                        data: {
+                            labels: data.classes,
+                            datasets: [{
+                                label: 'Students by Class',
+                                data: data.students_per_class,
+                                backgroundColor: '#17a2b8'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                datalabels: {
+                                    anchor: 'end',
+                                    align: 'top',
+                                    color: '#000',
+                                    font: { weight: 'bold' },
+                                    formatter: Math.round
+                                }
+                            },
+                            scales: { y: { beginAtZero: true } }
+                        },
+                        plugins: [ChartDataLabels]
+                    });
+
+                    container.dataset.loaded = "true";
+                } catch (err) {
+                    container.innerHTML = `<div class="text-danger">Failed to load stats</div>`;
+                }
             }
-        });
-
-        new Chart(document.getElementById('teacherClassChart-{{ teacher.id }}'), {
-            type: 'bar',
-            data: {
-                labels: {{ stats.class_stats | map(attribute=0) | list | tojson }},
-                datasets: [{
-                    label: 'Students by Class',
-                    data: {{ stats.class_stats | map(attribute=1) | list | tojson }},
-                    backgroundColor: '#17a2b8'
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    datalabels: {
-                        anchor: 'end',
-                        align: 'top',
-                        color: '#000',
-                        font: { weight: 'bold' },
-                        formatter: Math.round
-                    }
-                },
-                scales: { y: { beginAtZero: true } }
-            },
-            plugins: [ChartDataLabels]
-        });
-    {% endfor %}
+        } else {
+            row.style.display = 'none';
+        }
+    }
 </script>
+
 
 {% endblock %}

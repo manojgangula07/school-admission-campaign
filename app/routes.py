@@ -106,7 +106,8 @@ def teacher_dashboard():
 
 from flask import request
 
-@main.route('/admin_dashboard', methods=['GET']) 
+# Optimized admin_dashboard route with async teacher stats and paginated duplicates
+@main.route('/admin_dashboard', methods=['GET'])
 def admin_dashboard():
     if not session.get('admin'):
         return redirect(url_for('main.login'))
@@ -114,10 +115,12 @@ def admin_dashboard():
     # Pagination setup
     page_students = request.args.get('page_students', 1, type=int)
     page_teachers = request.args.get('page_teachers', 1, type=int)
+    page_duplicates = request.args.get('page_duplicates', 1, type=int)
     students_per_page = 20
     teachers_per_page = 5
+    duplicates_per_page = 10
 
-    # Filters from request
+    # Filters
     search_name = request.args.get('search_name', '').strip()
     class_filter = request.args.get('class_filter', '').strip()
     village_filter = request.args.get('village_filter', '').strip()
@@ -138,71 +141,68 @@ def admin_dashboard():
         except ValueError:
             pass
 
-    # Paginate students
+    # Paginated students
     students = student_query.order_by(Student.id.desc()).paginate(
         page=page_students, per_page=students_per_page, error_out=False
     )
 
-    # Paginate teachers
-    teachers_query = Teacher.query.order_by(Teacher.id.desc())
-    teachers_paginated = teachers_query.paginate(
+    # Paginated teachers
+    teachers_paginated = Teacher.query.order_by(Teacher.id.desc()).paginate(
         page=page_teachers, per_page=teachers_per_page, error_out=False
     )
 
-    # Total page counts
-    total_student_pages = students.pages
-    total_teacher_pages = teachers_paginated.pages
-
     # Filter options
     all_teachers = Teacher.query.all()
-    classes = [c[0] for c in db.session.query(Student.student_class).distinct().filter(Student.student_class.isnot(None)).all()]
-    villages = sorted(set(
-    v[0].strip().title()
-    for v in db.session.query(Student.village)
-    .filter(Student.village.isnot(None))
-    .all()
-    if v[0]
-))
+    classes = [c[0] for c in db.session.query(Student.student_class)
+               .distinct().filter(Student.student_class.isnot(None)).all()]
+    villages = sorted({v[0].strip().title() for v in db.session.query(Student.village)
+                       .filter(Student.village.isnot(None)).all() if v[0]})
 
-
-    # Chart: students by teacher
+    # Students by teacher chart
     students_by_teacher = db.session.query(Teacher.name, func.count(Student.id))\
         .join(Student).group_by(Teacher.name)\
         .order_by(func.count(Student.id).desc()).all()
 
-    # Custom class order
+    # Class stats in one query
+    class_stats = db.session.query(
+        Student.student_class,
+        Student.is_admitted,
+        func.count(Student.id)
+    ).filter(Student.student_class.isnot(None))\
+     .group_by(Student.student_class, Student.is_admitted).all()
+
     class_order = ['NUR', 'LKG', 'UKG'] + [str(i) for i in range(1, 11)]
-
-    # Classes from DB sorted according to order
-    sorted_classes = sorted(classes, key=lambda x: class_order.index(x) if x in class_order else len(class_order))
-
-    # Prepare class-wise admitted and not admitted counts
-    admitted_class_counts = []
-    not_admitted_class_counts = []
-    for cls in sorted_classes:
-        admitted_class_counts.append(Student.query.filter_by(student_class=cls, is_admitted=True).count())
-        not_admitted_class_counts.append(Student.query.filter_by(student_class=cls, is_admitted=False).count())
-
+    stats_dict = {(cls, adm): count for cls, adm, count in class_stats}
+    sorted_classes = sorted(set(cls for cls, _, _ in class_stats),
+                            key=lambda x: class_order.index(x) if x in class_order else len(class_order))
+    admitted_class_counts = [stats_dict.get((cls, True), 0) for cls in sorted_classes]
+    not_admitted_class_counts = [stats_dict.get((cls, False), 0) for cls in sorted_classes]
     students_by_class = list(zip(sorted_classes, [a + b for a, b in zip(admitted_class_counts, not_admitted_class_counts)]))
 
-    # Admission stats
     admitted_count = sum(admitted_class_counts)
     not_admitted_count = sum(not_admitted_class_counts)
 
+
+    # Fetch teacher IDs
     teacher_ids = [t.id for t in all_teachers]
+
+    # Admitted students query
     admitted_query = db.session.query(Student.teacher_id, func.count())\
         .filter(Student.is_admitted == True, Student.teacher_id.in_(teacher_ids))\
         .group_by(Student.teacher_id).all()
 
+    # Not admitted students query
     not_admitted_query = db.session.query(Student.teacher_id, func.count())\
         .filter(Student.is_admitted == False, Student.teacher_id.in_(teacher_ids))\
         .group_by(Student.teacher_id).all()
 
+    # Class stats query
     class_stats_query = db.session.query(
         Student.teacher_id, Student.student_class, func.count(Student.id)
     ).filter(Student.teacher_id.in_(teacher_ids))\
-     .group_by(Student.teacher_id, Student.student_class).all()
+    .group_by(Student.teacher_id, Student.student_class).all()
 
+    # Build the teacher stats dictionary
     teacher_stats = {tid: {'admitted': 0, 'not_admitted': 0, 'class_stats': []} for tid in teacher_ids}
     for tid, count in admitted_query:
         teacher_stats[tid]['admitted'] = count
@@ -211,37 +211,37 @@ def admin_dashboard():
     for tid, cls, count in class_stats_query:
         teacher_stats[tid]['class_stats'].append((cls, count))
 
-    # ✅ Duplicate logic (matches on 6 fields + different teachers)
-    # Duplicate detection using only class, village, and mobile number
+
+    # Duplicate detection: scoped and paginated
     dup_subquery = db.session.query(
         Student.student_class,
         Student.village,
         Student.mobile_number
-    ).group_by(
-        Student.student_class,
-        Student.village,
-        Student.mobile_number
-    ).having(func.count(func.distinct(Student.teacher_id)) > 1).subquery()
+    ).filter(Student.mobile_number.isnot(None), Student.village.isnot(None), Student.student_class.isnot(None))\
+     .group_by(Student.student_class, Student.village, Student.mobile_number)\
+     .having(func.count(func.distinct(Student.teacher_id)) > 1).subquery()
 
-    # Get full student records that match the above
-    duplicates = db.session.query(Student).join(
+    duplicate_query = db.session.query(Student).join(
         dup_subquery,
         (Student.student_class == dup_subquery.c.student_class) &
         (Student.village == dup_subquery.c.village) &
         (Student.mobile_number == dup_subquery.c.mobile_number)
-    ).order_by(Student.student_name).all()
+    ).order_by(Student.student_name)
 
+    duplicates = duplicate_query.paginate(
+        page=page_duplicates, per_page=duplicates_per_page, error_out=False
+    )
 
     return render_template('admin_dashboard.html',
                            students=students,
                            teachers=teachers_paginated,
-                           total_student_pages=total_student_pages,
-                           total_teacher_pages=total_teacher_pages,
+                           total_student_pages=students.pages,
+                           total_teacher_pages=teachers_paginated.pages,
                            all_teachers=all_teachers,
                            classes=classes,
                            villages=villages,
-                           students_by_teacher=students_by_teacher or [],
-                           students_by_class=students_by_class or [],
+                           students_by_teacher=students_by_teacher,
+                           students_by_class=students_by_class,
                            admitted_class_counts=admitted_class_counts,
                            not_admitted_class_counts=not_admitted_class_counts,
                            students_by_class_labels=sorted_classes,
@@ -252,8 +252,11 @@ def admin_dashboard():
                            teacher_filter=teacher_filter,
                            admitted=admitted_count,
                            not_admitted=not_admitted_count,
-                           teacher_stats=teacher_stats,
-                           duplicates=duplicates)
+                           teacher_stats=teacher_stats,  # Loaded async
+                           duplicates=duplicates,
+                           page_duplicates=page_duplicates)
+
+
 
 
 # @main.route('/admin/normalize_villages')
