@@ -6,12 +6,14 @@ from flask_wtf.csrf import CSRFProtect
 from config import Config
 import os
 from werkzeug.security import generate_password_hash
+from flask_caching import Cache
 
-# Initialize extensions
+# Initialize extensions (do not bind to app yet)
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
+cache = Cache(config={'CACHE_TYPE': 'simple'})  # Use 'redis' or 'memcached' in production
 
 # Set the login view for Flask-Login
 login_manager.login_view = 'main.login'
@@ -51,11 +53,12 @@ def create_app():
     # Load app configuration
     app.config.from_object(Config)
 
-    # Initialize extensions with the app
+    # Bind extensions to app
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
+    cache.init_app(app)
 
     # Setup user loader function for Flask-Login
     from .models import Teacher

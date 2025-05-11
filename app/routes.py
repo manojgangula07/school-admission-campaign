@@ -1,9 +1,9 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session, jsonify, Response, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
-from sqlalchemy import func
+from sqlalchemy import func, case
 from flask_login import login_user, logout_user, login_required, current_user
-from app import db
+from app import db, cache
 from app.models import Teacher, Student
 from .forms import SignupForm, EditStudentForm ,EditTeacherForm, AddStudentForm, AddStudentByTeacherForm
 from flask import Blueprint
@@ -11,6 +11,9 @@ import csv
 from sqlalchemy.orm import joinedload
 import io
 import openpyxl
+from flask_caching import Cache
+from flask import current_app
+
 main = Blueprint('main', __name__)
 
 import os
@@ -75,21 +78,18 @@ def teacher_dashboard():
     # Get all students for this teacher
     students = Student.query.filter_by(teacher_id=current_user.id).all()
     
-    # Get admission statistics
-    admitted = Student.query.filter_by(teacher_id=current_user.id, is_admitted=True).count()
-    not_admitted = Student.query.filter_by(teacher_id=current_user.id, is_admitted=False).count()
-    
-    # Get students per class
-    class_stats = db.session.query(
+    stats = db.session.query(
+        func.sum(case((Student.is_admitted == True, 1), else_=0)).label('admitted'),
+        func.sum(case((Student.is_admitted == False, 1), else_=0)).label('not_admitted'),
         Student.student_class,
         func.count(Student.id)
     ).filter_by(teacher_id=current_user.id).group_by(Student.student_class).all()
-    
-    classes = [stat[0] for stat in class_stats]
-    students_per_class = [stat[1] for stat in class_stats]
 
-    
-    
+    admitted = sum(row[0] for row in stats)
+    not_admitted = sum(row[1] for row in stats)
+    classes = [row[2] for row in stats]
+    students_per_class = [row[3] for row in stats]
+
     # Get upcoming follow-ups (next 7 days)
     today = datetime.now().date()
     next_week = today + timedelta(days=7)
@@ -118,53 +118,24 @@ def admin_dashboard():
     if not session.get('admin'):
         return redirect(url_for('main.login'))
 
-    # Pagination setup
-    page_students = request.args.get('page_students', 1, type=int)
-    page_teachers = request.args.get('page_teachers', 1, type=int)
-    page_duplicates = request.args.get('page_duplicates', 1, type=int)
-    students_per_page = 20
-    teachers_per_page = 20
-    duplicates_per_page = 20
+    # Get cached stats for the four charts
+    stats = get_admin_dashboard_stats()
 
-    # Filters
-    search_name = request.args.get('search_name', '').strip()
-    class_filter = request.args.get('class_filter', '').strip()
-    village_filter = request.args.get('village_filter', '').strip()
-    teacher_filter = request.args.get('teacher_filter', '').strip()
-
-    # Student filtering query
-    student_query = Student.query
-    if search_name:
-        student_query = student_query.filter(Student.student_name.ilike(f"%{search_name}%"))
-    if class_filter:
-        student_query = student_query.filter(Student.student_class == class_filter)
-    if village_filter:
-        student_query = student_query.filter(Student.village == village_filter)
-    if teacher_filter:
-        try:
-            teacher_id = int(teacher_filter)
-            student_query = student_query.filter(Student.teacher_id == teacher_id)
-        except ValueError:
-            pass
-
-    # Paginated students
-    students = student_query.order_by(Student.id.desc()).paginate(
-        page=page_students, per_page=students_per_page, error_out=False
+    return render_template('admin_dashboard.html',
+        students_by_teacher=stats['students_by_teacher'],
+        students_by_class=stats['students_by_class'],
+        admitted_class_counts=stats['admitted_class_counts'],
+        not_admitted_class_counts=stats['not_admitted_class_counts'],
+        students_by_class_labels=stats['sorted_classes'],
+        admission_stats={"Admitted": stats['admitted_count'], "Not Admitted": stats['not_admitted_count']},
+        admitted=stats['admitted_count'],
+        not_admitted=stats['not_admitted_count'],
+        village_counts=stats['village_counts'],
+        villages=stats['villages'],
     )
 
-    # Paginated teachers
-    teachers_paginated = Teacher.query.order_by(Teacher.id.desc()).paginate(
-        page=page_teachers, per_page=teachers_per_page, error_out=False
-    )
-
-    # Filter options
-    all_teachers = Teacher.query.all()
-    classes = [c[0] for c in db.session.query(Student.student_class)
-               .distinct().filter(Student.student_class.isnot(None)).all()]
-    villages = sorted({v[0].strip().title() for v in db.session.query(Student.village)
-                       .filter(Student.village.isnot(None)).all() if v[0]})
-
-    # Students by teacher chart
+def compute_admin_dashboard_stats():
+    # Students by teacher
     students_by_teacher = db.session.query(Teacher.name, func.count(Student.id))\
         .join(Student).group_by(Teacher.name)\
         .order_by(func.count(Student.id).desc()).all()
@@ -188,56 +159,6 @@ def admin_dashboard():
     admitted_count = sum(admitted_class_counts)
     not_admitted_count = sum(not_admitted_class_counts)
 
-
-    # Fetch teacher IDs
-    teacher_ids = [t.id for t in all_teachers]
-
-    # Admitted students query
-    admitted_query = db.session.query(Student.teacher_id, func.count())\
-        .filter(Student.is_admitted == True, Student.teacher_id.in_(teacher_ids))\
-        .group_by(Student.teacher_id).all()
-
-    # Not admitted students query
-    not_admitted_query = db.session.query(Student.teacher_id, func.count())\
-        .filter(Student.is_admitted == False, Student.teacher_id.in_(teacher_ids))\
-        .group_by(Student.teacher_id).all()
-
-    # Class stats query
-    class_stats_query = db.session.query(
-        Student.teacher_id, Student.student_class, func.count(Student.id)
-    ).filter(Student.teacher_id.in_(teacher_ids))\
-    .group_by(Student.teacher_id, Student.student_class).all()
-
-    # Build the teacher stats dictionary
-    teacher_stats = {tid: {'admitted': 0, 'not_admitted': 0, 'class_stats': []} for tid in teacher_ids}
-    for tid, count in admitted_query:
-        teacher_stats[tid]['admitted'] = count
-    for tid, count in not_admitted_query:
-        teacher_stats[tid]['not_admitted'] = count
-    for tid, cls, count in class_stats_query:
-        teacher_stats[tid]['class_stats'].append((cls, count))
-
-
-    # Duplicate detection: scoped and paginated
-    dup_subquery = db.session.query(
-        Student.student_class,
-        Student.village,
-        Student.mobile_number
-    ).filter(Student.mobile_number.isnot(None), Student.village.isnot(None), Student.student_class.isnot(None))\
-     .group_by(Student.student_class, Student.village, Student.mobile_number)\
-     .having(func.count(func.distinct(Student.teacher_id)) > 1).subquery()
-
-    duplicate_query = db.session.query(Student).join(
-        dup_subquery,
-        (Student.student_class == dup_subquery.c.student_class) &
-        (Student.village == dup_subquery.c.village) &
-        (Student.mobile_number == dup_subquery.c.mobile_number)
-    ).order_by(Student.student_name)
-
-    duplicates = duplicate_query.paginate(
-        page=page_duplicates, per_page=duplicates_per_page, error_out=False
-    )
-
     # Get village statistics
     village_stats = db.session.query(
         Student.village,
@@ -249,33 +170,24 @@ def admin_dashboard():
     village_counts = [stat[1] for stat in village_stats]
     villages = [stat[0] for stat in village_stats]
 
-    return render_template('admin_dashboard.html',
-                           students=students,
-                           teachers=teachers_paginated,
-                           total_student_pages=students.pages,
-                           total_teacher_pages=teachers_paginated.pages,
-                           all_teachers=all_teachers,
-                           classes=classes,
-                           villages=villages,
-                           village_counts=village_counts,
-                           students_by_teacher=students_by_teacher,
-                           students_by_class=students_by_class,
-                           admitted_class_counts=admitted_class_counts,
-                           not_admitted_class_counts=not_admitted_class_counts,
-                           students_by_class_labels=sorted_classes,
-                           admission_stats={"Admitted": admitted_count, "Not Admitted": not_admitted_count},
-                           search_name=search_name,
-                           class_filter=class_filter,
-                           village_filter=village_filter,
-                           teacher_filter=teacher_filter,
-                           admitted=admitted_count,
-                           not_admitted=not_admitted_count,
-                           teacher_stats=teacher_stats,  # Loaded async
-                           duplicates=duplicates,
-                           page_duplicates=page_duplicates)
+    return {
+        'students_by_teacher': students_by_teacher,
+        'class_stats': class_stats,
+        'class_order': class_order,
+        'stats_dict': stats_dict,
+        'sorted_classes': sorted_classes,
+        'admitted_class_counts': admitted_class_counts,
+        'not_admitted_class_counts': not_admitted_class_counts,
+        'students_by_class': students_by_class,
+        'admitted_count': admitted_count,
+        'not_admitted_count': not_admitted_count,
+        'village_counts': village_counts,
+        'villages': villages,
+    }
 
-
-
+@cache.cached(timeout=300, key_prefix='admin_dashboard_stats')
+def get_admin_dashboard_stats():
+    return compute_admin_dashboard_stats()
 
 @main.route('/admin/add_teacher', methods=['GET', 'POST'])
 def add_teacher():
@@ -671,8 +583,8 @@ def admission_campaign():
     # Pagination setup
     page = request.args.get('page', 1, type=int)
     page_duplicates = request.args.get('page_duplicates', 1, type=int)
-    students_per_page = 20
-    duplicates_per_page = 10
+    students_per_page = 30
+    duplicates_per_page = 30
 
     # Get active tab
     active_tab = request.args.get('active_tab', 'students')

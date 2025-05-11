@@ -10,5 +10,5 @@ python-dotenv
 psycopg2
 email-validator
 openpyxl
-
+Flask-Caching
 
