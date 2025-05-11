@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}Admission Campaign{% endblock %}
+
+{% block content %}
+    <!-- Page Title and Actions -->
+    <div class="row mb-3 mb-md-4">
+        <div class="col">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+                <h2 class="h3 mb-0">Admission Campaign</h2>
+                <div class="d-flex gap-2">
+                    {% if session.get('admin') %}
+                    <a href="{{ url_for('main.add_student_admin') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> <span class="d-none d-md-inline">Add Student</span>
+                    </a>
+                    {% endif %}
+                    <button id="refreshBtn" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-clockwise"></i> <span class="d-none d-md-inline">Refresh</span>
+                    </button>
+                    <a id="exportBtn" class="btn btn-success" href="#"><i class="bi bi-download"></i> Export Data</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-3 mb-md-4">
+        <div class="card-body p-2 p-md-3">
+            <form id="searchForm" method="get" class="row g-2">
+                <div class="col-12 col-sm-6 col-md-3">
+                    <input type="text" class="form-control" name="search_name" placeholder="🔍 Name..." value="{{ search_name }}">
+                </div>
+                <div class="col-12 col-sm-6 col-md-3">
+                    <select class="form-select" name="class_filter">
+                        <option value="">All Classes</option>
+                        {% for class_name in classes %}
+                        <option value="{{ class_name }}" {% if class_name == class_filter %}selected{% endif %}>{{ class_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-sm-6 col-md-3">
+                    <select class="form-select" name="village_filter">
+                        <option value="">All Villages</option>
+                        {% for village in villages %}
+                        <option value="{{ village }}" {% if village == village_filter %}selected{% endif %}>{{ village }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-sm-6 col-md-3">
+                    <select class="form-select" name="teacher_filter">
+                        <option value="">All Teachers</option>
+                        {% for teacher in all_teachers %}
+                        <option value="{{ teacher.id }}" {% if teacher.id|string == teacher_filter %}selected{% endif %}>{{ teacher.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-sm-6 col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-3 mb-md-4" id="admissionTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="students-tab" data-bs-toggle="tab" data-bs-target="#students" type="button" role="tab">
+                <i class="bi bi-people"></i> <span class="d-none d-md-inline">Students List</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="duplicates-tab" data-bs-toggle="tab" data-bs-target="#duplicates" type="button" role="tab">
+                <i class="bi bi-exclamation-triangle"></i> <span class="d-none d-md-inline">Duplicates</span>
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="admissionTabsContent">
+        <!-- Students Tab -->
+        <div class="tab-pane fade show active" id="students" role="tabpanel">
+            <!-- Student Table -->
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th class="d-none d-md-table-cell">ID</th>
+                            <th>Name</th>
+                            <th class="d-none d-md-table-cell">Father</th>
+                            <th>Village</th>
+                            <th class="d-none d-md-table-cell">Mobile</th>
+                            <th>Class</th>
+                            <th class="d-none d-md-table-cell">Teacher</th>
+                            <th>Status</th>
+                            <th class="d-none d-md-table-cell">Admission</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students.items %}
+                        <tr>
+                            <td class="d-none d-md-table-cell">{{ student.id }}</td>
+                            <td>{{ student.student_name }}</td>
+                            <td class="d-none d-md-table-cell">{{ student.father_name }}</td>
+                            <td>{{ student.village }}</td>
+                            <td class="d-none d-md-table-cell">{{ student.mobile_number }}</td>
+                            <td>{{ student.student_class }}</td>
+                            <td class="d-none d-md-table-cell">{{ student.teacher.name if student.teacher else 'N/A' }}</td>
+                            <td>
+                                {% if student.is_admitted %}
+                                    <span class="badge bg-success">Admitted</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Not Admitted</span>
+                                {% endif %}
+                            </td>
+                            <td class="d-none d-md-table-cell">{{ student.admission_date.strftime('%Y-%m-%d') if student.admission_date else '-' }}</td>
+                            <td>
+                                <div class="d-flex flex-nowrap gap-1">
+                                    <a href="{{ url_for('main.edit_student_admin', id=student.id) }}" class="btn btn-sm btn-warning" title="Edit">✏️ Edit</a>
+                                    <a href="{{ url_for('main.view_student', id=student.id) }}" class="btn btn-sm btn-info" title="View">👁️ View</a>
+                                    <form action="{{ url_for('main.delete_student', id=student.id) }}" method="POST" style="display:inline;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete?');" title="Delete">🗑️ Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="10" class="text-center text-muted">No students found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Student Pagination -->
+            <nav class="mt-3">
+                <ul class="pagination justify-content-center flex-wrap">
+                    {% for page_num in range(1, students.pages + 1) %}
+                    <li class="page-item {% if page_num == students.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.admission_campaign', page=page_num, search_name=search_name, class_filter=class_filter, village_filter=village_filter, teacher_filter=teacher_filter) }}">{{ page_num }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Duplicates Tab -->
+        <div class="tab-pane fade {% if active_tab == 'duplicates' %}show active{% endif %}" id="duplicates" role="tabpanel">
+            <h3 class="h4 mb-3 text-center text-md-start">Duplicate Student Entries</h3>
+            {% if duplicates and duplicates.items %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover table-bordered align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th class="d-none d-md-table-cell">ID</th>
+                            <th>Name</th>
+                            <th class="d-none d-md-table-cell">Father</th>
+                            <th class="d-none d-md-table-cell">Mother</th>
+                            <th>Class</th>
+                            <th>Village</th>
+                            <th class="d-none d-md-table-cell">Mobile</th>
+                            <th>Teacher</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in duplicates.items %}
+                        <tr>
+                            <td class="d-none d-md-table-cell">{{ student.id }}</td>
+                            <td>{{ student.student_name }}</td>
+                            <td class="d-none d-md-table-cell">{{ student.father_name }}</td>
+                            <td class="d-none d-md-table-cell">{{ student.mother_name }}</td>
+                            <td>{{ student.student_class }}</td>
+                            <td>{{ student.village }}</td>
+                            <td class="d-none d-md-table-cell">{{ student.mobile_number }}</td>
+                            <td>{{ student.teacher.name if student.teacher else 'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Duplicate Pagination -->
+            <nav class="mt-3">
+                <ul class="pagination justify-content-center flex-wrap">
+                    {% for page_num in range(1, duplicates.pages + 1) %}
+                    <li class="page-item {% if page_num == duplicates.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.admission_campaign', page=students.page, page_duplicates=page_num, search_name=search_name, class_filter=class_filter, village_filter=village_filter, teacher_filter=teacher_filter, active_tab='duplicates') }}">{{ page_num }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+            {% else %}
+            <div class="alert alert-info text-center">No duplicate student entries found.</div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function showSuccessMessage(message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-success alert-dismissible fade show';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.row'));
+    setTimeout(() => alertDiv.remove(), 5000);
+}
+
+// Add refresh functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const refreshBtn = document.getElementById('refreshBtn');
+    const admissionTabs = document.getElementById('admissionTabs');
+    
+    // Function to get active tab
+    function getActiveTab() {
+        const activeTab = admissionTabs.querySelector('.nav-link.active');
+        return activeTab.id === 'duplicates-tab' ? 'duplicates' : 'students';
+    }
+
+    // Function to build refresh URL
+    function buildRefreshUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const activeTab = getActiveTab();
+        
+        // Base parameters
+        const params = {
+            search_name: urlParams.get('search_name') || '',
+            class_filter: urlParams.get('class_filter') || '',
+            village_filter: urlParams.get('village_filter') || '',
+            teacher_filter: urlParams.get('teacher_filter') || '',
+            active_tab: activeTab
+        };
+
+        // Add pagination parameters
+        if (activeTab === 'duplicates') {
+            params.page_duplicates = urlParams.get('page_duplicates') || 1;
+            params.page = urlParams.get('page') || 1;
+        } else {
+            params.page = urlParams.get('page') || 1;
+            params.page_duplicates = urlParams.get('page_duplicates') || 1;
+        }
+
+        return window.location.pathname + '?' + new URLSearchParams(params).toString();
+    }
+
+    // Handle refresh button click
+    refreshBtn.addEventListener('click', function() {
+        const activeTab = getActiveTab();
+        const url = buildRefreshUrl();
+        window.location.href = url;
+    });
+
+    // Handle tab changes
+    const tabLinks = admissionTabs.querySelectorAll('.nav-link');
+    tabLinks.forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            const tabId = this.id === 'duplicates-tab' ? 'duplicates' : 'students';
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.set('active_tab', tabId);
+            window.history.replaceState({}, '', window.location.pathname + '?' + urlParams.toString());
+        });
+    });
+
+    // Set initial active tab based on URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeTab = urlParams.get('active_tab');
+    if (activeTab) {
+        const tabToActivate = activeTab === 'duplicates' ? 'duplicates-tab' : 'students-tab';
+        const tabElement = document.getElementById(tabToActivate);
+        if (tabElement) {
+            const tab = new bootstrap.Tab(tabElement);
+            tab.show();
+        }
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const exportBtn = document.getElementById('exportBtn');
+    exportBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const params = new URLSearchParams(window.location.search);
+        window.location.href = '/export_students?' + params.toString();
+    });
+});
+</script>
+{% endblock %} 

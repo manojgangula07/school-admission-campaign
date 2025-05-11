@@ -23,26 +23,26 @@ def init_db(app):
         from .models import Teacher, Student
         
         # Create all tables
-        db.create_all()
-        print("Database tables created successfully!")
+        #db.create_all()
+        #print("Database tables created successfully!")
         
         # Check if admin exists
-        admin = Teacher.query.filter_by(email="admin@admin.com").first()
-        if not admin:
-            # Create admin account if it doesn't exist
-            admin = Teacher(
-                name="Admin",
-                email="admin@admin.com",
-                password=generate_password_hash("admin"),
-                mobile_number="0000000000"
-            )
-            db.session.add(admin)
-            try:
-                db.session.commit()
-                print("Admin account created successfully!")
-            except Exception as e:
-                db.session.rollback()
-                print(f"Error creating admin account: {e}")
+        # admin = Teacher.query.filter_by(email="admin@admin.com").first()
+        # if not admin:
+        #     # Create admin account if it doesn't exist
+        #     admin = Teacher(
+        #         name="Admin",
+        #         email="admin@admin.com",
+        #         password=generate_password_hash("admin"),
+        #         mobile_number="0000000000"
+        #     )
+        #     db.session.add(admin)
+        #     try:
+        #         db.session.commit()
+        #         print("Admin account created successfully!")
+        #     except Exception as e:
+        #         db.session.rollback()
+        #         print(f"Error creating admin account: {e}")
 
 def create_app():
     """Create and configure the Flask app"""
