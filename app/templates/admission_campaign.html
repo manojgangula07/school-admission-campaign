@@ -54,7 +54,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-12 col-sm-6 col-md-3">
+                <div class="col-12">
                     <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
                 </div>
             </form>
@@ -79,57 +79,95 @@
     <div class="tab-content" id="admissionTabsContent">
         <!-- Students Tab -->
         <div class="tab-pane fade show active" id="students" role="tabpanel">
-            <!-- Student Table -->
-            <div class="table-responsive">
-                <table class="table table-bordered align-middle mb-0">
-                    <thead class="table-dark">
-                        <tr>
-                            <th class="d-none d-md-table-cell">ID</th>
-                            <th>Name</th>
-                            <th class="d-none d-md-table-cell">Father</th>
-                            <th>Village</th>
-                            <th class="d-none d-md-table-cell">Mobile</th>
-                            <th>Class</th>
-                            <th class="d-none d-md-table-cell">Teacher</th>
-                            <th>Status</th>
-                            <th class="d-none d-md-table-cell">Admission</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for student in students.items %}
-                        <tr>
-                            <td class="d-none d-md-table-cell">{{ student.id }}</td>
-                            <td>{{ student.student_name }}</td>
-                            <td class="d-none d-md-table-cell">{{ student.father_name }}</td>
-                            <td>{{ student.village }}</td>
-                            <td class="d-none d-md-table-cell">{{ student.mobile_number }}</td>
-                            <td>{{ student.student_class }}</td>
-                            <td class="d-none d-md-table-cell">{{ student.teacher.name if student.teacher else 'N/A' }}</td>
-                            <td>
-                                {% if student.is_admitted %}
-                                    <span class="badge bg-success">Admitted</span>
-                                {% else %}
-                                    <span class="badge bg-warning">Not Admitted</span>
-                                {% endif %}
-                            </td>
-                            <td class="d-none d-md-table-cell">{{ student.admission_date.strftime('%Y-%m-%d') if student.admission_date else '-' }}</td>
-                            <td>
-                                <div class="d-flex flex-nowrap gap-1">
-                                    <a href="{{ url_for('main.edit_student_admin', id=student.id) }}" class="btn btn-sm btn-warning" title="Edit">✏️ Edit</a>
-                                    <a href="{{ url_for('main.view_student', id=student.id) }}" class="btn btn-sm btn-info" title="View">👁️ View</a>
-                                    <form action="{{ url_for('main.delete_student', id=student.id) }}" method="POST" style="display:inline;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete?');" title="Delete">🗑️ Delete</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="10" class="text-center text-muted">No students found.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <!-- Desktop Table View -->
+            <div class="d-none d-md-block">
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Father</th>
+                                <th>Village</th>
+                                <th>Mobile</th>
+                                <th>Class</th>
+                                <th>Teacher</th>
+                                <th>Status</th>
+                                <th>Admission</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in students.items %}
+                            <tr>
+                                <td>{{ student.id }}</td>
+                                <td>{{ student.student_name }}</td>
+                                <td>{{ student.father_name }}</td>
+                                <td>{{ student.village }}</td>
+                                <td>{{ student.mobile_number }}</td>
+                                <td>{{ student.student_class }}</td>
+                                <td>{{ student.teacher.name if student.teacher else 'N/A' }}</td>
+                                <td>
+                                    {% if student.is_admitted %}
+                                        <span class="badge bg-success">Admitted</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Not Admitted</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ student.admission_date.strftime('%Y-%m-%d') if student.admission_date else '-' }}</td>
+                                <td>
+                                    <div class="d-flex flex-nowrap gap-1">
+                                        <a href="{{ url_for('main.edit_student_admin', id=student.id) }}" class="btn btn-sm btn-warning" title="Edit">✏️ Edit</a>
+                                        <a href="{{ url_for('main.view_student', id=student.id) }}" class="btn btn-sm btn-info" title="View">👁️ View</a>
+                                        <form action="{{ url_for('main.delete_student', id=student.id) }}" method="POST" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete?');" title="Delete">🗑️ Delete</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="10" class="text-center text-muted">No students found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Mobile Card View -->
+            <div class="d-md-none">
+                {% for student in students.items %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ student.student_name }}</h5>
+                        <div class="mb-2">
+                            <strong>ID:</strong> {{ student.id }}<br>
+                            <strong>Father:</strong> {{ student.father_name }}<br>
+                            <strong>Village:</strong> {{ student.village }}<br>
+                            <strong>Mobile:</strong> {{ student.mobile_number }}<br>
+                            <strong>Class:</strong> {{ student.student_class }}<br>
+                            <strong>Teacher:</strong> {{ student.teacher.name if student.teacher else 'N/A' }}<br>
+                            <strong>Status:</strong> 
+                            {% if student.is_admitted %}
+                                <span class="badge bg-success">Admitted</span>
+                            {% else %}
+                                <span class="badge bg-warning">Not Admitted</span>
+                            {% endif %}<br>
+                            <strong>Admission:</strong> {{ student.admission_date.strftime('%Y-%m-%d') if student.admission_date else '-' }}
+                        </div>
+                        <div class="d-flex flex-wrap gap-1">
+                            <a href="{{ url_for('main.edit_student_admin', id=student.id) }}" class="btn btn-sm btn-warning">✏️ Edit</a>
+                            <a href="{{ url_for('main.view_student', id=student.id) }}" class="btn btn-sm btn-info">👁️ View</a>
+                            <form action="{{ url_for('main.delete_student', id=student.id) }}" method="POST" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete?');">🗑️ Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-info text-center">No students found.</div>
+                {% endfor %}
             </div>
 
             <!-- Student Pagination -->
@@ -148,35 +186,58 @@
         <div class="tab-pane fade {% if active_tab == 'duplicates' %}show active{% endif %}" id="duplicates" role="tabpanel">
             <h3 class="h4 mb-3 text-center text-md-start">Duplicate Student Entries</h3>
             {% if duplicates and duplicates.items %}
-            <div class="table-responsive">
-                <table class="table table-striped table-hover table-bordered align-middle mb-0">
-                    <thead class="table-dark">
-                        <tr>
-                            <th class="d-none d-md-table-cell">ID</th>
-                            <th>Name</th>
-                            <th class="d-none d-md-table-cell">Father</th>
-                            <th class="d-none d-md-table-cell">Mother</th>
-                            <th>Class</th>
-                            <th>Village</th>
-                            <th class="d-none d-md-table-cell">Mobile</th>
-                            <th>Teacher</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for student in duplicates.items %}
-                        <tr>
-                            <td class="d-none d-md-table-cell">{{ student.id }}</td>
-                            <td>{{ student.student_name }}</td>
-                            <td class="d-none d-md-table-cell">{{ student.father_name }}</td>
-                            <td class="d-none d-md-table-cell">{{ student.mother_name }}</td>
-                            <td>{{ student.student_class }}</td>
-                            <td>{{ student.village }}</td>
-                            <td class="d-none d-md-table-cell">{{ student.mobile_number }}</td>
-                            <td>{{ student.teacher.name if student.teacher else 'N/A' }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <!-- Desktop Table View -->
+            <div class="d-none d-md-block">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover table-bordered align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Father</th>
+                                <th>Mother</th>
+                                <th>Class</th>
+                                <th>Village</th>
+                                <th>Mobile</th>
+                                <th>Teacher</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in duplicates.items %}
+                            <tr>
+                                <td>{{ student.id }}</td>
+                                <td>{{ student.student_name }}</td>
+                                <td>{{ student.father_name }}</td>
+                                <td>{{ student.mother_name }}</td>
+                                <td>{{ student.student_class }}</td>
+                                <td>{{ student.village }}</td>
+                                <td>{{ student.mobile_number }}</td>
+                                <td>{{ student.teacher.name if student.teacher else 'N/A' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Mobile Card View -->
+            <div class="d-md-none">
+                {% for student in duplicates.items %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ student.student_name }}</h5>
+                        <div class="mb-2">
+                            <strong>ID:</strong> {{ student.id }}<br>
+                            <strong>Father:</strong> {{ student.father_name }}<br>
+                            <strong>Mother:</strong> {{ student.mother_name }}<br>
+                            <strong>Class:</strong> {{ student.student_class }}<br>
+                            <strong>Village:</strong> {{ student.village }}<br>
+                            <strong>Mobile:</strong> {{ student.mobile_number }}<br>
+                            <strong>Teacher:</strong> {{ student.teacher.name if student.teacher else 'N/A' }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
 
             <!-- Duplicate Pagination -->

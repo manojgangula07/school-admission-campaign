@@ -26,8 +26,9 @@ def home():
 
 @main.route('/login', methods=['GET', 'POST'])
 def login():
-    # Clear any existing flash messages
-    session.pop('_flashes', None)
+    # Clear any existing session data and cache
+    session.clear()
+    cache.clear()
     
     if request.method == 'POST':
         email = request.form['email']
@@ -35,11 +36,14 @@ def login():
         
         if email == ADMIN_EMAIL and password == ADMIN_PASSWORD:
             session['admin'] = True
+            session['user_type'] = 'admin'
             return redirect(url_for('main.admin_dashboard'))
         
         teacher = Teacher.query.filter_by(email=email).first()
         if teacher and check_password_hash(teacher.password, password):
             login_user(teacher)
+            session['teacher_id'] = teacher.id
+            session['user_type'] = 'teacher'
             return redirect(url_for('main.teacher_dashboard'))
         
         flash('Invalid credentials')
@@ -50,8 +54,11 @@ def login():
 @main.route('/logout')
 @login_required
 def logout():
+    # Clear all session data
+    session.clear()
+    # Clear any cached data
+    cache.clear()
     logout_user()
-    session.pop('admin', None)
     return redirect(url_for('main.login'))
 
 @main.route('/signup', methods=['GET', 'POST'])

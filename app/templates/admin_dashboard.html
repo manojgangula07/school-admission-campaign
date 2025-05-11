@@ -58,9 +58,12 @@
 {% block extra_js %}
 <!-- Chart.js and Datalabels Plugin -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 
 <script>
+    // Register the datalabels plugin
+    Chart.register(ChartDataLabels);
+
     // Chart functionality
     function renderCharts() {
         // Students per Teacher Chart

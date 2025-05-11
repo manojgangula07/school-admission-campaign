@@ -7,7 +7,6 @@
 <h5 class="text-muted mb-4">Welcome, {{ current_user.name }}</h5>
 
 <div class="mb-3 d-flex flex-wrap gap-2">
-    <a href="{{ url_for('main.logout') }}" class="btn btn-danger">Logout</a>
     <a href="{{ url_for('main.add_student') }}" class="btn btn-success">➕ Add Student</a>
 </div>
 
@@ -85,7 +84,7 @@
 </div>
 
 <!-- Student Table (unchanged structure) -->
-<div class="table-responsive">
+<div id="student-table" class="table-responsive">
     <table class="table table-bordered align-middle">
         <thead class="table-dark">
             <tr>
@@ -171,6 +170,7 @@
 
 <!-- Chart + Modal Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 <script>
     const csrfToken = "{{ csrf_token() }}";
 
@@ -198,6 +198,9 @@
         });
     }
 
+    // Register the datalabels plugin
+    Chart.register(ChartDataLabels);
+
     new Chart(document.getElementById('admissionChart'), {
         type: 'pie',
         data: {
@@ -206,6 +209,20 @@
                 data: [{{ admitted }}, {{ not_admitted }}],
                 backgroundColor: ['#198754', '#ffc107']
             }]
+        },
+        options: {
+            plugins: {
+                datalabels: {
+                    color: '#fff',
+                    font: {
+                        weight: 'bold',
+                        size: 14
+                    },
+                    formatter: function(value) {
+                        return value > 0 ? value : '';
+                    }
+                }
+            }
         }
     });
 
@@ -221,7 +238,31 @@
         },
         options: {
             responsive: true,
-            scales: { y: { beginAtZero: true } }
+            plugins: {
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    color: '#000',
+                    font: {
+                        weight: 'bold',
+                        size: 12
+                    },
+                    formatter: function(value) {
+                        return value > 0 ? value : '';
+                    },
+                    padding: {
+                        top: 4
+                    }
+                }
+            },
+            scales: { 
+                y: { 
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
         }
     });
 
@@ -244,5 +285,26 @@
         searchInput.addEventListener("input", filterStudents);
         classFilter.addEventListener("change", filterStudents);
     });
+
+    function toggleTeacherStats(teacherId) {
+        const statsRow = document.getElementById(`teacher-stats-${teacherId}`);
+        const statsContainer = document.getElementById(`teacher-stats-container-${teacherId}`);
+        
+        if (statsRow.style.display === 'none') {
+            statsRow.style.display = 'table-row';
+            loadTeacherStats(teacherId, statsContainer);
+        } else {
+            statsRow.style.display = 'none';
+            // Clean up charts when hidden
+            if (charts[`admission${teacherId}`]) {
+                charts[`admission${teacherId}`].destroy();
+                delete charts[`admission${teacherId}`];
+            }
+            if (charts[`class${teacherId}`]) {
+                charts[`class${teacherId}`].destroy();
+                delete charts[`class${teacherId}`];
+            }
+        }
+    }
 </script>
 {% endblock %}
