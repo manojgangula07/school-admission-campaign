@@ -2,7 +2,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 from config import Config
 import os
 from werkzeug.security import generate_password_hash
@@ -21,17 +21,13 @@ login_manager.login_view = 'main.login'
 def init_db(app):
     """Initialize the database and create admin account if it doesn't exist"""
     with app.app_context():
-        # Import models here to avoid circular imports
         from .models import Teacher, Student
-        
-        # Create all tables
-        #db.create_all()
-        #print("Database tables created successfully!")
-        
-        # Check if admin exists
+        # db.create_all()  # Uncomment to create tables if necessary
+        # print("Database tables created successfully!")
+
+        # Example admin creation logic (optional)
         # admin = Teacher.query.filter_by(email="admin@admin.com").first()
         # if not admin:
-        #     # Create admin account if it doesn't exist
         #     admin = Teacher(
         #         name="Admin",
         #         email="admin@admin.com",
@@ -49,9 +45,13 @@ def init_db(app):
 def create_app():
     """Create and configure the Flask app"""
     app = Flask(__name__, template_folder='templates')
-    
+
     # Load app configuration
     app.config.from_object(Config)
+
+    @app.context_processor
+    def inject_csrf_token():
+        return dict(csrf_token=generate_csrf)
 
     # Bind extensions to app
     db.init_app(app)
@@ -59,6 +59,16 @@ def create_app():
     login_manager.init_app(app)
     csrf.init_app(app)
     cache.init_app(app)
+
+    # ✅ Teardown: clean up SQLAlchemy sessions to avoid stale connections
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        db.session.remove()
+
+    # ✅ Optional: Render healthcheck route
+    @app.route('/ping')
+    def ping():
+        return 'pong', 200
 
     # Setup user loader function for Flask-Login
     from .models import Teacher

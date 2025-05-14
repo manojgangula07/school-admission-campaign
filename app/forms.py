@@ -4,15 +4,16 @@ from wtforms.validators import DataRequired, Email, Length, Optional
 from app.models import Teacher,Student
 from wtforms.fields import SelectField, HiddenField
 
+class LoginForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    submit = SubmitField('Login')
+
 class SignupForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired()])
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired()])
     mobile_number = StringField('Mobile Number', validators=[DataRequired()])
-
-from flask_wtf import FlaskForm
-from wtforms import StringField, SelectField, BooleanField, DateField
-from wtforms.validators import DataRequired, Length
 
 class AddStudentForm(FlaskForm):
     student_name = StringField('Student Name', validators=[DataRequired(), Length(max=100)])

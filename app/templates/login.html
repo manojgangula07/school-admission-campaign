@@ -16,17 +16,17 @@
         {% endwith %}
 
         <form method="POST" action="{{ url_for('main.login') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {{ form.hidden_tag() }} <!-- Automatically includes CSRF token -->
             <div class="mb-3">
-                <label for="email" class="form-label">Email</label>
-                <input type="email" class="form-control" id="email" name="email" required>
+                {{ form.email.label(class="form-label") }}
+                {{ form.email(class="form-control", id="email", required=True) }}
             </div>
             <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" name="password" required>
+                {{ form.password.label(class="form-label") }}
+                {{ form.password(class="form-control", id="password", required=True) }}
             </div>
             <div class="d-grid mb-3">
-                <button type="submit" class="btn btn-primary">Login</button>
+                {{ form.submit(class="btn btn-primary") }}
             </div>
             <div class="text-center">
                 <a href="{{ url_for('main.signup') }}">Create an account</a>

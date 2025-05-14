@@ -5,7 +5,7 @@ from sqlalchemy import func, case
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db, cache
 from app.models import Teacher, Student
-from .forms import SignupForm, EditStudentForm ,EditTeacherForm, AddStudentForm, AddStudentByTeacherForm
+from .forms import LoginForm, SignupForm, EditStudentForm ,EditTeacherForm, AddStudentForm, AddStudentByTeacherForm
 from flask import Blueprint
 import csv
 from sqlalchemy.orm import joinedload
@@ -24,32 +24,41 @@ ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD')
 def home():
     return redirect(url_for('main.login'))
 
+from flask import render_template, redirect, url_for, request, flash, session
+from flask_login import login_user
+from werkzeug.security import check_password_hash
+from .models import Teacher  # Assuming Teacher is your user model
+from .forms import LoginForm  # Import the LoginForm class
+
 @main.route('/login', methods=['GET', 'POST'])
 def login():
     # Clear any existing session data and cache
     session.clear()
     cache.clear()
-    
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
+
+    form = LoginForm()
+
+    if form.validate_on_submit():
+        email = form.email.data
+        password = form.password.data
         
         if email == ADMIN_EMAIL and password == ADMIN_PASSWORD:
             session['admin'] = True
             session['user_type'] = 'admin'
             return redirect(url_for('main.admin_dashboard'))
-        
+
         teacher = Teacher.query.filter_by(email=email).first()
         if teacher and check_password_hash(teacher.password, password):
             login_user(teacher)
             session['teacher_id'] = teacher.id
             session['user_type'] = 'teacher'
             return redirect(url_for('main.teacher_dashboard'))
-        
+
         flash('Invalid credentials')
         return redirect(url_for('main.login'))
-    
-    return render_template('login.html')
+
+    return render_template('login.html', form=form)
+
 
 @main.route('/logout')
 @login_required
