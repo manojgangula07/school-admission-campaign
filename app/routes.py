@@ -32,8 +32,10 @@ from .forms import LoginForm  # Import the LoginForm class
 
 @main.route('/login', methods=['GET', 'POST'])
 def login():
-    # Clear any existing session data and cache
-    session.clear()
+    # ✅ Selectively clear only user-related session keys
+    session.pop('teacher_id', None)
+    session.pop('admin', None)
+    session.pop('user_type', None)
     cache.clear()
 
     form = LoginForm()
@@ -58,6 +60,7 @@ def login():
         return redirect(url_for('main.login'))
 
     return render_template('login.html', form=form)
+
 
 
 @main.route('/logout')

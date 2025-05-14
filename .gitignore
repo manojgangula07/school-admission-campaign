@@ -14,7 +14,7 @@ venv/
 *.db
 
 # Flask/Migration
-migrations/ # Optional: include if you want to share schema setup
+migrations/
 instance/
 
 # IDE
